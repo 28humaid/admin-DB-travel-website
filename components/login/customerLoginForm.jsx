@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
 import InputField from '../common/inputField';
 import { Eye, EyeOff } from 'lucide-react';
 import { customerValidationSchema } from '@/utils/validationSchema';
+import Button from '../common/button';
 
 const CustomerLoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -56,13 +56,15 @@ const CustomerLoginForm = () => {
                   }
                 aria-describedby="password-error"
               />
-              <button
+              <Button
                 type="submit"
-                className="bg-blue-500 text-white px-4 py-2 rounded-md disabled:bg-blue-300"
+                loading={isSubmitting}
                 disabled={isSubmitting}
+                variant="primary"
+                size="medium"
               >
-                {isSubmitting ? 'Submitting...' : 'Submit'}
-              </button>
+                Submit
+              </Button>
             </Form>
           )}
         </Formik>
