@@ -1,6 +1,6 @@
-export default function Home() {
+export default function page() {
   return (
-    <div>
+    <div className='bg-green-400'>
       I am Main component!
     </div>
   );

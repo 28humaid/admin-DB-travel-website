@@ -20,6 +20,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         {children}
+        {/* <h1>I AM THE ROOT LAYOUT FOOTER!</h1> */}
       </body>
     </html>
   );
