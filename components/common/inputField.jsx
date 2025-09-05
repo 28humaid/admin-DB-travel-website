@@ -16,7 +16,7 @@ const InputField = ({
     ...props
     }) => {
     const isSelect = type === 'select';
-    const inputStyles = `border border-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${width} ${height} ${
+    const inputStyles = `border border-black rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${width} ${height} ${
         icon && !isSelect ? 'pr-10' : ''
     } ${className}`;
     const error = formik?.touched[name] && formik?.errors[name];
@@ -24,7 +24,7 @@ const InputField = ({
     return (
         <div className="mb-4">
         {label && (
-            <label htmlFor={name} className="block text-sm font-medium text-white mb-1">
+            <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
             {label}
             </label>
         )}
@@ -71,23 +71,5 @@ const InputField = ({
         </div>
     );
 };
-
-// InputField.propTypes = {
-//   type: PropTypes.string,
-//   name: PropTypes.string.isRequired,
-//   label: PropTypes.string,
-//   placeholder: PropTypes.string,
-//   width: PropTypes.string,
-//   height: PropTypes.string,
-//   options: PropTypes.arrayOf(
-//     PropTypes.shape({
-//       value: PropTypes.string,
-//       label: PropTypes.string,
-//     })
-//   ),
-//   formik: PropTypes.object.isRequired,
-//   className: PropTypes.string,
-//   icon: PropTypes.node, // Accepts JSX elements or components for the icon
-// };
 
 export default InputField;
