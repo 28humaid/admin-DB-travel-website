@@ -12,6 +12,8 @@ const page = () => {
   const contentMap = {
     createUser: <CreateUser/>,
     usersDetails: <UsersDetails/>,
+    
+    // logout ka logic yha bnana hai!
   };
 
   // Display content based on the slug, default to welcome message

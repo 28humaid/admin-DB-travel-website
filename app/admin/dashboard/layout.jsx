@@ -4,6 +4,8 @@ const layout = ({ children }) => {
   const options = [
     { label: 'Create user', route: 'createUser' },
     { label: 'Users details', route: 'usersDetails' },
+    { label: 'Upload Excel', route: 'uploadExcel' },
+    { label: 'Logout', route: 'login' },
   ];
 
   return (
