@@ -2,10 +2,10 @@ import Sidebar from "@/components/common/sidebar";
 
 const layout = ({ children }) => {
   const options = [
-    { label: 'Create user', route: 'createUser' },
-    { label: 'Users details', route: 'usersDetails' },
-    { label: 'Upload Excel', route: 'uploadExcel' },
-    { label: 'Logout', route: 'login' },
+    { label: 'Create user', route: 'createUser',icon:'Pencil' },
+    { label: 'Users details', route: 'usersDetails',icon:'Notebook' },
+    { label: 'Upload Excel', route: 'excelUpload',icon:'MonitorUp' },
+    { label: 'Logout', route: 'login', icon:'LogOut' },
   ];
 
   return (

@@ -10,7 +10,7 @@ export const usersData = [
     phoneNumber: '9878760099',
     subEntity: 'hhhxyz',
     gstNumber: '98123445679898',
-    address: 'town hall, nizamuddin, Delhi, India'
+    address: 'town hall, Delhi, India'
   },
   { 
     id: 2, 
@@ -52,16 +52,3 @@ export const usersData = [
     address: 'Sector 18, Gurgaon, Haryana, India'
   }
 ];
-
-// export const usersDataOnlyEmail = [
-//     emails = [
-//       { email1: 'abc@gmail.com' },
-//       { email2: 'fsdfsdf@gmail.com' },
-//       { email3: 'xxysdf@gmail.com' }
-//     ],
-//     emails= [
-//       { email1: 'jane.smith@company.com' },
-//       { email2: 'jsmith.backup@company.com' },
-//       { email3: 'jane.smith@gmail.com' }
-//     ],
-// ]

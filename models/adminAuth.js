@@ -11,6 +11,7 @@ const adminSchema = new Schema(
       required: true,
     },
   },
+  { collection: 'adminAuth' } // Explicitly set collection name
 );
 
 const Admin = models.Admin || mongoose.model("Admin", adminSchema);

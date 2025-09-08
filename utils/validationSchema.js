@@ -7,14 +7,6 @@ const baseSchema = {
     .required('Please enter password'),
 };
 
-// Customer-specific schema
-export const customerValidationSchema = Yup.object({
-  userid: Yup.string()
-    .min(5, 'User ID must be at least 5 characters')
-    .required('Please enter user ID'),
-  ...baseSchema,
-});
-
 // Admin-specific schema
 export const adminValidationSchema = Yup.object({
   email: Yup.string()

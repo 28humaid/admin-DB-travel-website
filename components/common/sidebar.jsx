@@ -1,14 +1,20 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { MenuIcon, XIcon, UploadIcon } from 'lucide-react';
+import { MenuIcon, XIcon, Notebook, Pencil, MonitorUp, LogOut } from 'lucide-react';
+
+const iconMap = {
+  Pencil: Pencil,
+  Notebook: Notebook,
+  MonitorUp: MonitorUp,
+  LogOut: LogOut,
+};
 
 const Sidebar = ({ options = [] }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Determine the default selected option (first option or based on current route)
   const getInitialSelected = () => {
@@ -28,37 +34,9 @@ const Sidebar = ({ options = [] }) => {
   };
 
   const handleOptionClick = (route) => {
-    if (route === 'uploadExcel') {
-      console.log('Upload Excel button clicked');
-      fileInputRef.current?.click();
-      return;
-    }
     setSelectedOption(route);
     router.push(`/admin/dashboard/${route}`);
     setIsMobileMenuOpen(false); // Close mobile menu after selection
-  };
-
-  const handleFileUpload = (event) => {
-    console.log('handleFileUpload triggered');
-    const file = event.target.files[0];
-    if (!file) {
-      console.log('No file selected');
-      return;
-    }
-    console.log('Selected file:', file.name, 'Type:', file.type);
-    if (
-      file.type === 'application/vnd.ms-excel' ||
-      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      file.name.endsWith('.xls') ||
-      file.name.endsWith('.xlsx')
-    ) {
-      console.log('Valid Excel file selected:', file.name);
-      // Add your file processing logic here (e.g., FormData, API call)
-    } else {
-      console.error('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
-    }
-    // Reset the file input to allow re-uploading the same file
-    event.target.value = '';
   };
 
   return (
@@ -77,19 +55,22 @@ const Sidebar = ({ options = [] }) => {
           <h2 className="text-xl font-bold mb-4">Admin Dashboard</h2>
           
           <ul>
-            {options.map((option) => (
-              <li key={option.route}>
-                <button
-                  onClick={() => handleOptionClick(option.route)}
-                  className={`w-full text-left p-2 mb-2 rounded-md text-lg flex items-center gap-2 ${
-                    selectedOption === option.route ? 'bg-red-200' : 'hover:bg-blue-400'
-                  }`}
-                >
-                  {option.route === 'uploadExcel' && <UploadIcon size={20} />}
-                  {option.label}
-                </button>
-              </li>
-            ))}
+            {options.map((option) => {
+              const Icon = iconMap[option.icon];
+              return (
+                <li key={option.route}>
+                  <button
+                    onClick={() => handleOptionClick(option.route)}
+                    className={`w-full text-left p-2 mb-2 rounded-md text-lg flex items-center gap-2 ${
+                      selectedOption === option.route ? 'bg-red-200' : 'hover:bg-blue-400'
+                    }`}
+                  >
+                    {Icon ? <Icon size={22} color="#000" /> : null}
+                    {option.label}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
@@ -103,31 +84,25 @@ const Sidebar = ({ options = [] }) => {
         <div className="p-4 mt-16">
           <h2 className="text-xl font-bold mb-4">Admin Dashboard</h2>
           <ul>
-            {options.map((option) => (
-              <li key={option.route}>
-                <button
-                  onClick={() => handleOptionClick(option.route)}
-                  className={`w-full text-left p-2 mb-2 rounded-md text-lg flex items-center gap-2 ${
-                    selectedOption === option.route ? 'bg-red-200' : 'hover:bg-blue-400'
-                  }`}
-                >
-                  {option.route === 'uploadExcel' && <UploadIcon size={20} />}
-                  {option.label}
-                </button>
-              </li>
-            ))}
+            {options.map((option) => {
+              const Icon = iconMap[option.icon]; // Capitalize for JSX convention
+              return (
+                <li key={option.route}>
+                  <button
+                    onClick={() => handleOptionClick(option.route)}
+                    className={`w-full text-left p-2 mb-2 rounded-md text-lg flex items-center gap-2 ${
+                      selectedOption === option.route ? 'bg-red-200' : 'hover:bg-blue-400'
+                    }`}
+                  >
+                    {Icon ? <Icon size={22} color="#000" /> : null}
+                    {option.label}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
-
-      {/* Hidden File Input for Excel Upload */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
     </>
   );
 };

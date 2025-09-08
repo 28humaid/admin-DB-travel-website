@@ -1,4 +1,5 @@
 import "./globals.css";
+import { AuthProvider } from "./Providers";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -19,7 +20,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         {/* <h1>I AM THE ROOT LAYOUT FOOTER!</h1> */}
       </body>
     </html>

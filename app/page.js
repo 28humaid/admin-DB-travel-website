@@ -1,7 +1,7 @@
+import LoginComponent from "@/components/login/loginComponent";
+
 export default function page() {
   return (
-    <div className='bg-green-400'>
-      I am Main component!
-    </div>
+    <LoginComponent user="admin"/>
   );
 }

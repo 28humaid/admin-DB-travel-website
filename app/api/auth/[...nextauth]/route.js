@@ -2,7 +2,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import Admin from "@/models/admin";
+import Admin from "@/models/adminAuth";
 
 export const authOptions = {
   providers: [
@@ -15,21 +15,21 @@ export const authOptions = {
 
         try {
           await connectMongoDB();
-          const admin = await Admin.findOne({ email });
+          const user = await Admin.findOne({ email });
 
-          if (!admin) {
+          if (!user) {
             return null;
           }
 
-          const passwordsMatch = await bcrypt.compare(password, admin.password);
+          const passwordsMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordsMatch) {
             return null;
           }
 
-          return admin;
+          return user;
         } catch (error) {
-          console.log("Error: ", error);
+          console.log("xzxzxzError: ", error);
         }
       },
     }),
@@ -39,7 +39,7 @@ export const authOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: "/admin/login",
+    signIn: "/",
   },
 };
 
