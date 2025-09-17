@@ -5,7 +5,7 @@ const layout = ({ children }) => {
     { label: 'Create user', route: 'createUser',icon:'Pencil' },
     { label: 'Users details', route: 'usersDetails',icon:'Notebook' },
     { label: 'Upload Excel', route: 'excelUpload',icon:'MonitorUp' },
-    { label: 'Logout', route: 'login', icon:'LogOut' },
+    { label: 'Logout', route: 'logout', icon:'LogOut' },
   ];
 
   return (
