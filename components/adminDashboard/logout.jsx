@@ -22,7 +22,7 @@ const Logout = () => {
         >
             <div className='flex flex-col bg-blue-300 p-4 rounded-lg gap-2'>
                 <p>Are you sure you want to logout?</p>
-                <div><AlertTriangle className="w-6 h-6 text-red-600" /></div>
+                <div className='flex items-center justify-center'><AlertTriangle className="w-24 h-24 text-red-600" /></div>
                 <div className="flex flex-col md:flex-row items-center justify-center gap-2">
 
                     <Button variant='danger' className="w-full" onClick={handleYesClick}>Yes</Button>

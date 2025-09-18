@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import * as XLSX from 'xlsx';
 
 export const ExcelToJsonConverter = ({ file, onConvert }) => {
@@ -27,7 +28,7 @@ export const ExcelToJsonConverter = ({ file, onConvert }) => {
   };
 
   // Call conversion when component mounts with a valid file
-  React.useEffect(() => {
+  useEffect(() => {
     if (file) {
       convertExcelToJson(file);
     }
