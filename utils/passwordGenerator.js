@@ -1,0 +1,1 @@
+export const tempPassword = Math.random().toString(36).slice(-8);

@@ -3,6 +3,10 @@ import { Formik, Form } from 'formik';
 import { createCustomerValidationSchema } from '@/utils/validationSchema';
 import Button from '../common/button';
 import InputField from '../common/inputField';
+import { sendAuthEmail } from '@/lib/emailService';
+import { tempPassword } from '@/utils/passwordGenerator';
+import SubmittingDialog from '../common/submittingDialog';
+import { userName } from '@/utils/userNameGenerator';
 
 
 
@@ -10,20 +14,47 @@ const CreateUser = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
   return (
     <>
+        {isSubmitting && <SubmittingDialog/>}
+
         <div className="p-4 w-full md:w-3/5">
             <Formik
                 initialValues={{ email1: '',email2:'',email3:'',companyName:'',phoneNumber:'',subEntity:'',gstNumber:'', addressLine1:'', addressLine2:'' }}
                 validationSchema={createCustomerValidationSchema}
-                onSubmit={async (values, { setSubmitting }) => {
+                onSubmit={async (values, { setSubmitting, resetForm }) => {
                     setIsSubmitting(true);
+                    
+                    // Create an array of non-empty emails
+                    const emails = [values.email1]; // email1 is mandatory
+                    if (values.email2) emails.push(values.email2); // Add email2 if not empty
+                    if (values.email3) emails.push(values.email3); // Add email3 if not empty
+
                     const combinedValues = {
                         ...values,
                         address:`${values.addressLine1}${values.addressLine2?', '+values.addressLine2:''}`
                     }
-                    console.log(values); // Replace with actual API call
-                    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
-                    setIsSubmitting(false);
-                    setSubmitting(false);
+                    try {
+                        // Log form values (replace with actual API call if needed)
+                        console.log('Form Values:', combinedValues);
+
+                        // /lib mei inke generators hain...
+                        const username = userName
+                        const password = tempPassword
+
+                        // Call email service
+                        await sendAuthEmail(emails, username, password);
+
+                        // Simulate API call (replace with actual API call if needed)
+                        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+                        console.log('Email sent successfully');
+                        } catch (error) {
+                        console.error('Submission error:', error);
+                        setSubmissionError('Failed to send email. Please try again.');
+                        } finally {
+                        resetForm();
+                        setIsSubmitting(false);
+                        setSubmitting(false);
+                        }
                 }}
             >
             {({ ...formik }) => (

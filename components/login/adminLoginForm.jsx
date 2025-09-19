@@ -32,8 +32,8 @@ const AdminLoginForm = () => {
 
             if (res.error) {
               setError("Invalid email or password");
-              setFieldError("email", "Invalid credentials");
-              setFieldError("password", "Invalid credentials");
+              // setFieldError("email", "Invalid credentials");
+              // setFieldError("password", "Invalid credentials");
               setIsSubmitting(false);
               setSubmitting(false);
               return;
