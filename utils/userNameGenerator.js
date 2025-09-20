@@ -1,1 +1,1 @@
-export const userName = Math.random().toString(36).slice(-8);
+export const userName = () => (Math.random().toString(36).slice(-8))
