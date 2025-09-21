@@ -1,12 +1,12 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
 
-const DataTable = ({ data, onDelete }) => {
+const DataTable = ({ data, onDelete, onEdit }) => {
   if (!data || data.length === 0) return <p>No data available</p>;
 
-  // Get headers, excluding password
+  // Get headers, excluding password and _id
   const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id') : [];
-  // const headers = data[0] ? Object.keys(data[0]) : [];
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full bg-white border border-gray-300">
@@ -37,13 +37,22 @@ const DataTable = ({ data, onDelete }) => {
                 </td>
               ))}
               <td className="px-4 py-2 border-b whitespace-nowrap">
-                <button
-                  onClick={() => onDelete(item.id)}
-                  className="text-red-500 hover:text-red-700 flex items-center"
-                  title="Delete"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => onEdit(item)}
+                    className="text-blue-500 hover:text-blue-700 flex items-center"
+                    title="Edit"
+                  >
+                    <Edit2 size={20} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(item.id)}
+                    className="text-red-500 hover:text-red-700 flex items-center"
+                    title="Delete"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
