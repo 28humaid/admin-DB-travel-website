@@ -2,9 +2,11 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 
 const DataTable = ({ data, onDelete }) => {
-  // Get headers from the first data item (including emails)
-  const headers = data[0] ? Object.keys(data[0]) : [];
+  if (!data || data.length === 0) return <p>No data available</p>;
 
+  // Get headers, excluding password
+  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id') : [];
+  // const headers = data[0] ? Object.keys(data[0]) : [];
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full bg-white border border-gray-300">
@@ -25,12 +27,12 @@ const DataTable = ({ data, onDelete }) => {
                 <td key={header} className="px-4 py-2 border-b whitespace-nowrap text-[14px]">
                   {header === 'emails' ? (
                     <ul className="list-disc pl-5">
-                      {item.emails.map((emailObj, index) => (
-                        <li key={index}>{Object.values(emailObj)[0]}</li>
-                      ))}
+                      {Array.isArray(item.emails) ? item.emails.map((email, index) => (
+                        <li key={index}>{email}</li>
+                      )) : 'No emails'}
                     </ul>
                   ) : (
-                    item[header]
+                    item[header] || 'N/A'
                   )}
                 </td>
               ))}
@@ -38,7 +40,7 @@ const DataTable = ({ data, onDelete }) => {
                 <button
                   onClick={() => onDelete(item.id)}
                   className="text-red-500 hover:text-red-700 flex items-center"
-                  title="Delete (Token)"
+                  title="Delete"
                 >
                   <Trash2 size={20} />
                 </button>

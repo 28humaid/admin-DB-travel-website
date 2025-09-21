@@ -1,12 +1,18 @@
-// app/api/customers/create/route.js
 import { NextResponse } from "next/server";
 import Customer from "@/models/customer";
 import { userName } from "@/utils/userNameGenerator";
 import { tempPassword } from "@/utils/passwordGenerator";
 import { sendAuthEmail } from "@/lib/emailService";
 import { connectMongoDB } from "@/lib/mongodb";
+import { getAuthSession } from "@/lib/getAuthSession";
 
 export async function POST(request) {
+  const session = await getAuthSession();
+  
+  if (!session || session.user.role !== "admin"){
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     // Initialize MongoDB connection
     await connectMongoDB();
@@ -45,7 +51,7 @@ export async function POST(request) {
       gstNumber,
       address,
       username: generatedUsername,
-      password: generatedPassword, // Consider hashing this in production
+      password: generatedPassword, // ISKO HASH KRNA HAI DHYAN SE!
     });
 
     // Save to MongoDB

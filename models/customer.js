@@ -24,7 +24,8 @@ const customerSchema = new Schema(
     },
     gstNumber: {
       type: String,
-      required: false, // Optional based on your form
+      required: true, // Optional based on your form
+      unique:true,
     },
     address: {
       type: String,
