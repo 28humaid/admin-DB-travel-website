@@ -11,7 +11,7 @@ const DataTable = ({ data, onDelete, onEdit }) => {
     <div className="overflow-x-auto">
       <table className="min-w-full bg-white border border-gray-300">
         <thead>
-          <tr className="bg-blue-400">
+          <tr className="bg-blue-300">
             {headers.map((header) => (
               <th key={header} className="px-4 py-2 border-b text-left capitalize whitespace-nowrap">
                 {header.replace(/([A-Z])/g, ' $1').trim()}

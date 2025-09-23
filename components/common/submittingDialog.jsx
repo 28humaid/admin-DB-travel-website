@@ -1,3 +1,4 @@
+import { LoaderCircle } from 'lucide-react'
 import React from 'react'
 
 const SubmittingDialog = () => {
@@ -7,7 +8,8 @@ const SubmittingDialog = () => {
     style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
     >
         <div className='flex flex-col bg-blue-300 p-4 rounded-lg gap-2'>
-            User is being created...
+            <h2>User is being created...</h2>
+            <LoaderCircle className="animate-spin" size={32} />
         </div>
     </div>
   )

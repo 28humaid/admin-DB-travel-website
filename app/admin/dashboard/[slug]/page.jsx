@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import CreateUser from '@/components/adminDashboard/createUser';
 import UsersDetails from '@/components/adminDashboard/usersDetails';
@@ -16,7 +16,6 @@ const page = () => {
     usersDetails: <UsersDetails/>,
     excelUpload:<ExcelUpload/>,
     logout: <Logout/>
-    // logout ka logic yha bnana hai!
   };
 
   if (!slug){
@@ -24,12 +23,12 @@ const page = () => {
   }
 
   // Display content based on the slug, default to welcome message
-  const content = contentMap[slug] || <div>Welcome to the Admin Dashboard</div>;
+  const content = contentMap[slug] || <div>Welcome to the Admin Dashboard, Click an option to continue</div>;
 
   return (
-    <div>
-      {content}
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <div>{content}</div>
+    </Suspense>
   );
 };
 

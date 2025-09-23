@@ -4,6 +4,10 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import Admin from "@/models/adminAuth";
 
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET is not defined in environment variables");
+}
+
 export const authOptions = {
   providers: [
     CredentialsProvider({
@@ -32,6 +36,7 @@ export const authOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -48,7 +53,11 @@ export const authOptions = {
     //   if (token?.role) {
     //     session.user.role = token.role;
     //   }
-      if (session.user) {
+      // if (session.user) {
+      //   session.user.role = token.role;
+      // }
+      if (token?.role) {
+        session.user = session.user || {};
         session.user.role = token.role;
       }
       console.log("Final session:", session);

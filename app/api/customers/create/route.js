@@ -58,7 +58,7 @@ export async function POST(request) {
     await customer.save();
 
     // Send authentication email
-    await sendAuthEmail(emails, generatedUsername, generatedPassword);
+    await sendAuthEmail(emails, generatedUsername, generatedPassword, companyName, gstNumber);
 
     return NextResponse.json(
       { message: "Customer created successfully" },

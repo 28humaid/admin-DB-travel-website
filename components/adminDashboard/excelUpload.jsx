@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { FileUp, FileSpreadsheet } from 'lucide-react';
-import { ExcelToJsonConverter } from './excelToJSON';
+import { ExcelToJsonConverter } from '../../utils/excelToJSON';
 
 
 const ExcelUpload = () => {

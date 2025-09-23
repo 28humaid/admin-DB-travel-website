@@ -1,6 +1,15 @@
 import Sidebar from "@/components/common/sidebar";
+import { getAuthSession } from "@/lib/getAuthSession";
 
-const layout = ({ children }) => {
+const layout = async ({ children }) => {
+
+  const session = await getAuthSession(); // Get server session
+
+  // Protect: Redirect if not authenticated or not admin
+  if (!session || session.user.role !== "admin") {
+    redirect("/"); // Redirect to login page (or a custom unauthorized page)
+  }
+
   const options = [
     { label: 'Create user', route: 'createUser',icon:'Pencil' },
     { label: 'Users details', route: 'usersDetails',icon:'Notebook' },

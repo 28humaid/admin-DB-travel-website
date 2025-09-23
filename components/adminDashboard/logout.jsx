@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Button from '../common/button'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
@@ -6,12 +6,13 @@ import { signOut } from 'next-auth/react'
 
 const Logout = () => {
     const router = useRouter()
+    const [isLoggingOut, setIsLoggingOut] = useState(false)
 
     const handleCancelClick = () => {
         router.back()
     }
     const handleYesClick = () => {
-        // console.log("Yes button clicked...");
+        setIsLoggingOut(true)
         signOut()
     }
   return (
@@ -22,12 +23,20 @@ const Logout = () => {
         >
             <div className='flex flex-col bg-blue-300 p-4 rounded-lg gap-2'>
                 <p>Are you sure you want to logout?</p>
-                <div className='flex items-center justify-center'><AlertTriangle className="w-24 h-24 text-red-400" /></div>
+                <div className='flex items-center justify-center'><AlertTriangle className="w-24 h-24 text-red-500" /></div>
                 <div className="flex flex-col md:flex-row items-center justify-center gap-2">
 
-                    <Button variant='danger' className="w-full" onClick={handleYesClick}>Yes</Button>
+                    <Button 
+                        variant='danger' 
+                        className="w-full" 
+                        onClick={handleYesClick} 
+                        loading={isLoggingOut}
+                        loadingText="Ok..."
+                    >
+                        Yes
+                    </Button>
 
-                    <Button variant='warning' className="w-full" onClick={handleCancelClick}>Cancel</Button>
+                    <Button variant='warning' className="w-full" onClick={handleCancelClick} disabled={isLoggingOut}>Cancel</Button>
                 </div>
             </div>
         </div>
