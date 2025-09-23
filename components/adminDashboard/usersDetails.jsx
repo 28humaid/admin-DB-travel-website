@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import DataTable from '../common/dataTable';
 import EditDialog from './EditDialog';
-import { useSession } from 'next-auth/react'; // For client-side authentication
+import { useSession } from 'next-auth/react';
+import CustomDialog from '../common/customDialog';
 
 const UsersDetails = () => {
   const { data: session } = useSession();
@@ -9,13 +10,17 @@ const UsersDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editCustomer, setEditCustomer] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogType, setDialogType] = useState(null); // 'confirmDelete' or 'error'
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [deleteId, setDeleteId] = useState(null);
 
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
         const response = await fetch('/api/customers/read', {
           headers: {
-            Authorization: `Bearer ${session?.accessToken}`, // Include JWT token
+            Authorization: `Bearer ${session?.accessToken}`,
           },
         });
         if (!response.ok) throw new Error('Failed to fetch customers');
@@ -31,21 +36,29 @@ const UsersDetails = () => {
     if (session) fetchCustomers();
   }, [session]);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDelete = (id) => {
+    setDialogType('confirmDelete');
+    setDialogMessage('Are you sure you want to delete this user?');
+    setDeleteId(id);
+    setOpenDialog(true);
+  };
+
+  const confirmDelete = async () => {
     try {
       const response = await fetch('/api/customers/delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`, // Include JWT token
+          Authorization: `Bearer ${session?.accessToken}`,
         },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: deleteId }),
       });
       if (!response.ok) throw new Error('Failed to delete');
-      setCustomers(prev => prev.filter(cust => cust.id !== id));
+      setCustomers(prev => prev.filter(cust => cust.id !== deleteId));
+      setOpenDialog(false);
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      setDialogType('error');
+      setDialogMessage('Delete failed: ' + err.message);
     }
   };
 
@@ -59,7 +72,7 @@ const UsersDetails = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`, // Include JWT token
+          Authorization: `Bearer ${session?.accessToken}`,
         },
         body: JSON.stringify(updatedCustomer),
       });
@@ -68,9 +81,19 @@ const UsersDetails = () => {
       setCustomers(prev =>
         prev.map(cust => (cust.id === customer._id ? { ...customer, id: customer._id } : cust))
       );
+      setEditCustomer(null);
     } catch (err) {
-      alert('Update failed: ' + err.message);
+      setDialogType('error');
+      setDialogMessage('Update failed: ' + err.message);
+      setOpenDialog(true);
     }
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setDialogType(null);
+    setDialogMessage('');
+    setDeleteId(null);
   };
 
   if (!session) return <div className="container mx-auto p-4">Please log in</div>;
@@ -89,6 +112,13 @@ const UsersDetails = () => {
           onSave={handleSave}
         />
       )}
+      <CustomDialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        type={dialogType}
+        message={dialogMessage}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };
