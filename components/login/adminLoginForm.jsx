@@ -43,10 +43,10 @@ const AdminLoginForm = () => {
             // setIsSubmitting(false);
             // kayi baar login pr click krne se rokne k liye
             setSubmitting(false);
-            if (session) {
-              router.replace("/admin/dashboard/createUser");
-            }
-            // router.replace("/admin/dashboard/createUser");
+            // if (session) {
+            //   router.replace("/admin/dashboard/createUser");
+            // }
+            router.replace("/admin/dashboard/createUser");
           } catch (error) {
             console.error("Login error:", error.message);
             setError(
