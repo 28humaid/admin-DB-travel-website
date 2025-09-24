@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Formik, Form } from 'formik';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import InputField from '../common/inputField';
 import { Eye, EyeOff } from 'lucide-react';
 import { adminValidationSchema } from '@/utils/validationSchema';
@@ -14,6 +14,7 @@ const AdminLoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const { data: session } = useSession();
 
   return (
     <div className="p-4">
@@ -42,7 +43,10 @@ const AdminLoginForm = () => {
             // setIsSubmitting(false);
             // kayi baar login pr click krne se rokne k liye
             setSubmitting(false);
-            router.replace("/admin/dashboard/createUser");
+            if (session) {
+              router.replace("/admin/dashboard/createUser");
+            }
+            // router.replace("/admin/dashboard/createUser");
           } catch (error) {
             console.error("Login error:", error.message);
             setError(
