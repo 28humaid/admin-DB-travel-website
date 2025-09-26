@@ -5,7 +5,7 @@ const DataTable = ({ data, onDelete, onEdit }) => {
   if (!data || data.length === 0) return <p>No data available</p>;
 
   // Get headers, excluding password and _id
-  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id') : [];
+  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id' && key !== '__v' && key !== 'id') : [];
 
   return (
     <div className="overflow-x-auto overflow-y-auto max-h-[560px]">

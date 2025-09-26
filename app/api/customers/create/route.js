@@ -5,6 +5,7 @@ import { tempPassword } from "@/utils/passwordGenerator";
 import { sendAuthEmail } from "@/lib/emailService";
 import { connectMongoDB } from "@/lib/mongodb";
 import { getAuthSession } from "@/lib/getAuthSession";
+import bcrypt from 'bcrypt';
 
 export async function POST(request) {
   const session = await getAuthSession();
@@ -51,7 +52,8 @@ export async function POST(request) {
       gstNumber,
       address,
       username: generatedUsername,
-      password: generatedPassword, // ISKO HASH KRNA HAI DHYAN SE!
+      // password: generatedPassword, // ISKO HASH KRNA HAI DHYAN SE!
+      password:await bcrypt.hash(generatedPassword, 12),
     });
 
     // Save to MongoDB
