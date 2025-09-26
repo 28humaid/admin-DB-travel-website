@@ -50,7 +50,7 @@ const Sidebar = ({ options = [] }) => {
       </button>
 
       {/* Sidebar for Desktop */}
-      <div className="hidden md:block w-1/5 h-screen bg-blue-300 fixed top-0 left-0">
+      <div className="hidden md:block w-1/5 min-h-screen bg-blue-300 fixed top-0 left-0">
         <div className="p-4">
           <h2 className="text-xl font-bold mb-4">Admin Dashboard</h2>
           

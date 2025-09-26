@@ -8,23 +8,23 @@ const DataTable = ({ data, onDelete, onEdit }) => {
   const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id' && key !== '__v' && key !== 'id') : [];
 
   return (
-    <div className="overflow-x-auto overflow-y-auto max-h-[560px]">
-      <table className="min-w-full bg-white border border-gray-300">
-        <thead>
-          <tr className="bg-blue-300">
+    <div className="overflow-x-auto overflow-y-auto max-h-[460px] md:max-w-[1080px]">
+      <table className="min-w-full bg-white border border-gray-300 table-fixed">
+        <thead className="sticky top-0 bg-blue-300">
+          <tr>
             {headers.map((header) => (
-              <th key={header} className="px-4 py-2 border-b text-left capitalize whitespace-nowrap">
+              <th key={header} className="px-4 py-2 border-b text-left capitalize whitespace-nowrap text-[15px]">
                 {header.replace(/([A-Z])/g, ' $1').trim()}
               </th>
             ))}
-            <th className="px-4 py-2 border-b text-left whitespace-nowrap">Actions</th>
+            <th className="px-4 py-2 border-b text-left whitespace-nowrap text-[15px]">Actions</th>
           </tr>
         </thead>
         <tbody>
           {data.map((item) => (
             <tr key={item.id} className="hover:bg-blue-300">
               {headers.map((header) => (
-                <td key={header} className="px-4 py-2 border-b whitespace-nowrap text-[14px]">
+                <td key={header} className="px-4 py-2 border-b whitespace-nowrap text-[13px]">
                   {header === 'emails' ? (
                     <ul className="list-disc pl-5">
                       {Array.isArray(item.emails) ? item.emails.map((email, index) => (
