@@ -8,7 +8,7 @@ const DataTable = ({ data, onDelete, onEdit }) => {
   const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id' && key !== '__v' && key !== 'id') : [];
 
   return (
-    <div className="overflow-x-auto overflow-y-auto max-h-[460px] md:max-w-[1080px]">
+    <div className="overflow-x-auto overflow-y-auto max-h-[460px] md:max-w-[900px]">
       <table className="min-w-full bg-white border border-gray-300 table-fixed">
         <thead className="sticky top-0 bg-blue-300">
           <tr>
