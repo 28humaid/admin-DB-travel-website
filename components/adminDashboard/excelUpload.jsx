@@ -8,7 +8,8 @@ import ComboBox from '../common/comboBox';
 import { useSession } from 'next-auth/react';
 import DataTable from '../common/dataTable';
 import { ExcelToJsonConverter } from '@/utils/excelToJSON';
-import CustomDialog from '../common/customDialog';
+import CustomDialog from '../common/customDialog'; // Adjust path as needed
+import FeedbackDialog from '../common/feedbackDialog'
 
 const ExcelUpload = () => {
   const { data: session } = useSession();
@@ -21,12 +22,16 @@ const ExcelUpload = () => {
   const [error, setError] = useState(null);
   const [jsonData, setJsonData] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState('');
   const [activeTab, setActiveTab] = useState('bookings'); // 'bookings' or 'refunds'
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingCompanyId, setPendingCompanyId] = useState(null);
   const [pendingJsonData, setPendingJsonData] = useState(null);
+
+  // New states for FeedbackDialog
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [isFeedbackError, setIsFeedbackError] = useState(false);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -79,11 +84,14 @@ const ExcelUpload = () => {
       setSelectedFile(file);
       setFileName(file.name);
       setJsonData(null); // Reset JSON data
-      setUploadStatus(''); // Reset status
     } else {
       console.error('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
       setSelectedFile(null);
       setFileName('');
+      // Show error feedback
+      setFeedbackMessage('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
+      setIsFeedbackError(true);
+      setShowFeedback(true);
     }
     event.target.value = ''; // Reset input
   };
@@ -92,7 +100,6 @@ const ExcelUpload = () => {
     setSelectedFile(null);
     setFileName('');
     setJsonData(null);
-    setUploadStatus('');
     if (fileInputRef.current) {
       fileInputRef.current.value = ''; // Clear file input
     }
@@ -111,7 +118,6 @@ const ExcelUpload = () => {
     const companyName = companyOptions.find(option => option.value === companyId)?.label || 'the company';
 
     setIsUploading(true);
-    setUploadStatus('Uploading...');
 
     try {
       const response = await fetch('/api/uploads/excel', {
@@ -132,17 +138,24 @@ const ExcelUpload = () => {
       if (response.ok && result.success) {
         const bookingCount = result.bookings.inserted + result.bookings.updated;
         const refundCount = result.refunds.inserted + result.refunds.updated;
-        setUploadStatus(
-          `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`
-        );
+        const successMsg = `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`;
+        setFeedbackMessage(successMsg);
+        setIsFeedbackError(false);
+        setShowFeedback(true);
         // Reset form
         handleClearFile();
         setActiveTab('bookings');
       } else {
-        setUploadStatus(`Error: ${result.error || 'Upload failed'}`);
+        const errorMsg = `Error: ${result.error || 'Upload failed'}`;
+        setFeedbackMessage(errorMsg);
+        setIsFeedbackError(true);
+        setShowFeedback(true);
       }
     } catch (err) {
-      setUploadStatus(`Error: ${err.message}`);
+      const errorMsg = `Error: ${err.message}`;
+      setFeedbackMessage(errorMsg);
+      setIsFeedbackError(true);
+      setShowFeedback(true);
     } finally {
       setIsUploading(false);
     }
@@ -150,7 +163,9 @@ const ExcelUpload = () => {
 
   const handleCancelOverwrite = () => {
     setShowConfirmDialog(false);
-    setUploadStatus('Upload cancelled.');
+    setFeedbackMessage('Upload cancelled.');
+    setIsFeedbackError(true);
+    setShowFeedback(true);
     setIsUploading(false);
     setPendingCompanyId(null);
     setPendingJsonData(null);
@@ -158,7 +173,10 @@ const ExcelUpload = () => {
 
   const handleSubmit = async (values) => {
     if (!jsonData || !selectedFile || !values.company) {
-      setUploadStatus('Please select a file and company first.');
+      const errorMsg = 'Please select a file and company first.';
+      setFeedbackMessage(errorMsg);
+      setIsFeedbackError(true);
+      setShowFeedback(true);
       return;
     }
 
@@ -166,7 +184,6 @@ const ExcelUpload = () => {
     const companyName = companyOptions.find(option => option.value === companyId)?.label || 'the company';
 
     setIsUploading(true);
-    setUploadStatus('Checking existing records...');
 
     try {
       // Check if bookings exist for the company
@@ -192,8 +209,6 @@ const ExcelUpload = () => {
       }
 
       // If no existing records, proceed directly with upload
-      setUploadStatus('Uploading...');
-
       const response = await fetch('/api/uploads/excel', {
         method: 'POST',
         headers: {
@@ -212,17 +227,24 @@ const ExcelUpload = () => {
       if (response.ok && result.success) {
         const bookingCount = result.bookings.inserted + result.bookings.updated;
         const refundCount = result.refunds.inserted + result.refunds.updated;
-        setUploadStatus(
-          `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`
-        );
+        const successMsg = `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`;
+        setFeedbackMessage(successMsg);
+        setIsFeedbackError(false);
+        setShowFeedback(true);
         // Reset form
         handleClearFile();
         setActiveTab('bookings');
       } else {
-        setUploadStatus(`Error: ${result.error || 'Upload failed'}`);
+        const errorMsg = `Error: ${result.error || 'Upload failed'}`;
+        setFeedbackMessage(errorMsg);
+        setIsFeedbackError(true);
+        setShowFeedback(true);
       }
     } catch (err) {
-      setUploadStatus(`Error: ${err.message}`);
+      const errorMsg = `Error: ${err.message}`;
+      setFeedbackMessage(errorMsg);
+      setIsFeedbackError(true);
+      setShowFeedback(true);
     } finally {
       setIsUploading(false);
     }
@@ -262,6 +284,12 @@ const ExcelUpload = () => {
   const previewData = activeTab === 'bookings' 
     ? (jsonData?.bookings || []).slice(0, 10) 
     : (jsonData?.refunds || []).slice(0, 10);
+
+  // FeedbackDialog onClose handler
+  const handleFeedbackClose = () => {
+    setShowFeedback(false);
+    setFeedbackMessage('');
+  };
 
   return (
     <div className="w-full min-h-[90%] flex flex-col items-center justify-center gap-4">
@@ -339,25 +367,23 @@ const ExcelUpload = () => {
           {selectedFile && !jsonData && (
             <ExcelToJsonConverter file={selectedFile} onConvert={handleJsonConverted} />
           )}
-          {uploadStatus && (
-            <div className={`p-4 rounded-md text-white ${
-              uploadStatus.includes('Uploaded') ? 'bg-green-500' : 'bg-red-500'
-            }`}>
-              {uploadStatus}
-            </div>
-          )}
         </>
       )}
       <CustomDialog
         open={showConfirmDialog}
         onClose={handleCancelOverwrite}
-        type="confirmOverwrite"  // New type for this scenario
+        type="confirmOverwrite"
         message={confirmMessage}
         onConfirm={handleConfirmOverwrite}
-        title="Confirm Update"  // Custom title
-        confirmButtonText="Update"  // Tailored button text
-        cancelButtonText="Cancel"  // Explicit, but optional (falls back anyway)
-        // confirmButtonClass not needed—defaults to blue via type logic
+        title="Confirm Update"
+        confirmButtonText="Update"
+        cancelButtonText="Cancel"
+      />
+      <FeedbackDialog
+        isOpen={showFeedback}
+        message={feedbackMessage}
+        isError={isFeedbackError}
+        onClose={handleFeedbackClose}
       />
     </div>
   );
