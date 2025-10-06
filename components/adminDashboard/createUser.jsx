@@ -20,7 +20,7 @@ const CreateUser = () => {
 
   // Added: Handle unauthenticated state
   if (!session) {
-    return <div className="p-4">Please log in to create a user.</div>;
+    return <div className="p-4">Please wait a moment OR log in to create a user.</div>;
   }
 
   return (
