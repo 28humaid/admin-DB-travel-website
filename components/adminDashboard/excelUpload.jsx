@@ -11,6 +11,7 @@ import { ExcelToJsonConverter } from '@/utils/excelToJSON';
 import { apiRequest } from '@/utils/apiRequest';
 import CustomDialog from '../common/customDialog';
 import FeedbackDialog from '../common/feedbackDialog';
+import { getAuthToken } from '@/utils/getAuthToken';
 
 const ExcelUpload = () => {
   const { data: session } = useSession();
@@ -37,7 +38,7 @@ const ExcelUpload = () => {
       try {
         const { customers } = await apiRequest({
           url: '/api/customers/read',
-          token: session?.accessToken,
+          token: getAuthToken(),
         });
         const formattedCustomers = customers.map(cust => ({ ...cust, id: cust._id }));
         setCustomers(formattedCustomers);
@@ -123,7 +124,7 @@ const ExcelUpload = () => {
           companyId,
           overwrite: true,
         },
-        token: session?.accessToken,
+        token: getAuthToken(),
       });
 
       if (result.success) {
@@ -174,7 +175,7 @@ const ExcelUpload = () => {
       // Check if bookings exist
       const { exists } = await apiRequest({
         url: `/api/uploads/excel?companyId=${companyId}`,
-        token: session?.accessToken,
+        token: getAuthToken(),
       });
 
       if (exists) {
@@ -194,7 +195,7 @@ const ExcelUpload = () => {
           companyId,
           overwrite: false,
         },
-        token: session?.accessToken,
+        token: getAuthToken(),
       });
 
       if (result.success) {

@@ -4,7 +4,7 @@ import { connectMongoDB } from "@/lib/mongodb";
 import { getAuthSession } from "@/lib/getAuthSession";
 
 export async function PUT(request) {
-  const session = await getAuthSession();
+  const session = await getAuthSession(request);
   if (!session || session.user.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }

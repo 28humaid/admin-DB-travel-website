@@ -3,8 +3,8 @@ import Customer from "@/models/customer";
 import { connectMongoDB } from "@/lib/mongodb";
 import { getAuthSession } from "@/lib/getAuthSession";
 
-export async function GET() {
-    const session = await getAuthSession()
+export async function GET(request) {
+    const session = await getAuthSession(request)
     // console.log("xyxyxyyxx",session);
     
       if (!session || session.user.role !== "admin"){

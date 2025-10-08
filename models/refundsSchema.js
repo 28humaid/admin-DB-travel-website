@@ -36,5 +36,7 @@ const refundsSchema = new Schema(
   }
 );
 
+refundsSchema.index({ companyId: 1 });
+
 const Refund = models.Refund || mongoose.model("Refund", refundsSchema);
 export default Refund;

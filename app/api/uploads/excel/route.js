@@ -119,7 +119,7 @@ const convertToSchemaData = (row, columnMap) => {
 
 export async function GET(request) {
   try {
-    const authSession = await getAuthSession();
+    const authSession = await getAuthSession(request);
     if (!authSession || !authSession.user || authSession.user.role !== 'admin') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
@@ -143,7 +143,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const authSession = await getAuthSession();
+    const authSession = await getAuthSession(request);
     if (!authSession || !authSession.user || authSession.user.role !== 'admin') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }

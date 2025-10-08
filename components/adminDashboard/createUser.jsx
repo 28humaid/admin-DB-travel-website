@@ -6,6 +6,7 @@ import { apiRequest } from '@/utils/apiRequest';
 import Button from "../common/button";
 import InputField from "../common/inputField";
 import FeedbackDialog from "../common/feedbackDialog";
+import { getAuthToken } from "@/utils/getAuthToken";
 
 const CreateUser = () => {
   const { data: session } = useSession();
@@ -53,7 +54,7 @@ const CreateUser = () => {
                 url: "/api/customers/create",
                 method: "POST",
                 body: values,
-                token: session?.accessToken,
+                token: getAuthToken(),
               });
 
               setDialogState({

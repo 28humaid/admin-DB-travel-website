@@ -8,7 +8,7 @@ import { getAuthSession } from "@/lib/getAuthSession";
 import bcrypt from 'bcrypt';
 
 export async function POST(request) {
-  const session = await getAuthSession();
+  const session = await getAuthSession(request);
   
   if (!session || session.user.role !== "admin"){
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

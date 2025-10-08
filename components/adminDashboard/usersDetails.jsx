@@ -5,6 +5,7 @@ import EditDialog from './EditDialog';
 import { useSession } from 'next-auth/react';
 import { apiRequest } from '@/utils/apiRequest'; // Import the utility
 import CustomDialog from '../common/customDialog';
+import { getAuthToken } from '@/utils/getAuthToken';
 
 const UsersDetails = () => {
   const { data: session } = useSession();
@@ -22,7 +23,7 @@ const UsersDetails = () => {
       try {
         const { customers } = await apiRequest({
           url: '/api/customers/read',
-          token: session?.accessToken,
+          token: getAuthToken(),
         });
         const formattedCustomers = customers.map(cust => ({ ...cust, id: cust._id }));
         setCustomers(formattedCustomers);
@@ -48,7 +49,7 @@ const UsersDetails = () => {
         url: '/api/customers/delete',
         method: 'DELETE',
         body: { id: deleteId },
-        token: session?.accessToken,
+        token: getAuthToken(),
       });
       setCustomers(prev => prev.filter(cust => cust.id !== deleteId));
       setOpenDialog(false);
@@ -68,7 +69,7 @@ const UsersDetails = () => {
         url: '/api/customers/update',
         method: 'PUT',
         body: updatedCustomer,
-        token: session?.accessToken,
+        token: getAuthToken(),
       });
       setCustomers(prev =>
         prev.map(cust => (cust.id === customer._id ? { ...customer, id: customer._id } : cust))

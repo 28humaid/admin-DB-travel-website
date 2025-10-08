@@ -138,5 +138,7 @@ const bookingsSchema = new Schema(
   }
 );
 
+bookingsSchema.index({ companyId: 1 });
+
 const Booking = models.Booking || mongoose.model("Booking", bookingsSchema);
 export default Booking;
