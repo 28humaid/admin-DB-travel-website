@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Formik, Form } from "formik";
 import { createCustomerValidationSchema } from "@/utils/validationSchema";
-import { useSession } from 'next-auth/react'; // Added for authentication
+import { useSession } from 'next-auth/react';
+import { apiRequest } from '@/utils/apiRequest'; 
 import Button from "../common/button";
 import InputField from "../common/inputField";
 import FeedbackDialog from "../common/feedbackDialog";
 
 const CreateUser = () => {
-  const { data: session } = useSession(); // Added to access session and token
+  const { data: session } = useSession();
   const [dialogState, setDialogState] = useState({
     isOpen: false,
     message: "",
@@ -18,7 +19,6 @@ const CreateUser = () => {
     setDialogState({ isOpen: false, message: "", isError: false });
   };
 
-  // Added: Handle unauthenticated state
   if (!session) {
     return <div className="p-4">Please wait a moment OR log in to create a user.</div>;
   }
@@ -31,12 +31,7 @@ const CreateUser = () => {
         isError={dialogState.isError}
         onClose={handleCloseDialog}
       />
-
       <div className="p-4 w-full md:w-3/5 relative">
-        {/* Overlay to block form interaction during submission */}
-        {/* {dialogState.isOpen && (
-          <div className="absolute inset-0 bg-black bg-opacity-30 z-10" />
-        )} */}
         <Formik
           initialValues={{
             email1: "",
@@ -54,23 +49,13 @@ const CreateUser = () => {
             setDialogState({ isOpen: true, message: "Submitting...", isError: false });
 
             try {
-              const response = await fetch("/api/customers/create", {
+              const result = await apiRequest({
+                url: "/api/customers/create",
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session?.accessToken}`, // Added: Authentication header
-                },
-                body: JSON.stringify(values),
+                body: values,
+                token: session?.accessToken,
               });
 
-              if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(
-                  errorData.message || `Failed to create customer (Error ${response.status})`
-                );
-              }
-
-              const result = await response.json();
               setDialogState({
                 isOpen: true,
                 message: result.message || "Customer created successfully",
@@ -80,14 +65,8 @@ const CreateUser = () => {
             } catch (error) {
               console.error("Submission error:", error);
               let errorMessage = "Failed to create customer. Please try again.";
-              if (error.message.includes("Failed to connect to database")) {
-                errorMessage = "Database connection failed. Please try again later.";
-              } else if (error.message.includes("Error 400")) {
-                errorMessage = "Invalid input data (Error 400).";
-              } else if (error.message.includes("Error 500")) {
-                errorMessage = "Server error (Error 500). Please try again later.";
-              } else if (error.message.includes("401")) { // Added: Handle auth-specific errors
-                errorMessage = "Authentication failed. Please log in again.";
+              if (error.message.includes("Network error")) {
+                errorMessage = "Network error: Failed to connect to the server.";
               }
               setDialogState({ isOpen: true, message: errorMessage, isError: true });
             } finally {
@@ -95,7 +74,7 @@ const CreateUser = () => {
             }
           }}
         >
-          {({ isSubmitting,...formik }) => (
+          {({ isSubmitting, ...formik }) => (
             <Form className="space-y-4">
               <InputField
                 type="email"

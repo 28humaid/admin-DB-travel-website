@@ -8,8 +8,9 @@ import ComboBox from '../common/comboBox';
 import { useSession } from 'next-auth/react';
 import DataTable from '../common/dataTable';
 import { ExcelToJsonConverter } from '@/utils/excelToJSON';
-import CustomDialog from '../common/customDialog'; // Adjust path as needed
-import FeedbackDialog from '../common/feedbackDialog'
+import { apiRequest } from '@/utils/apiRequest';
+import CustomDialog from '../common/customDialog';
+import FeedbackDialog from '../common/feedbackDialog';
 
 const ExcelUpload = () => {
   const { data: session } = useSession();
@@ -22,13 +23,11 @@ const ExcelUpload = () => {
   const [error, setError] = useState(null);
   const [jsonData, setJsonData] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings' or 'refunds'
+  const [activeTab, setActiveTab] = useState('bookings');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingCompanyId, setPendingCompanyId] = useState(null);
   const [pendingJsonData, setPendingJsonData] = useState(null);
-
-  // New states for FeedbackDialog
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isFeedbackError, setIsFeedbackError] = useState(false);
@@ -36,13 +35,10 @@ const ExcelUpload = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch('/api/customers/read', {
-          headers: {
-            Authorization: `Bearer ${session?.accessToken}`,
-          },
+        const { customers } = await apiRequest({
+          url: '/api/customers/read',
+          token: session?.accessToken,
         });
-        if (!response.ok) throw new Error('Failed to fetch customers');
-        const { customers } = await response.json();
         const formattedCustomers = customers.map(cust => ({ ...cust, id: cust._id }));
         setCustomers(formattedCustomers);
         const options = formattedCustomers.map(cust => ({
@@ -83,17 +79,16 @@ const ExcelUpload = () => {
       console.log('Valid Excel file selected:', file.name);
       setSelectedFile(file);
       setFileName(file.name);
-      setJsonData(null); // Reset JSON data
+      setJsonData(null);
     } else {
       console.error('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
       setSelectedFile(null);
       setFileName('');
-      // Show error feedback
       setFeedbackMessage('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
       setIsFeedbackError(true);
       setShowFeedback(true);
     }
-    event.target.value = ''; // Reset input
+    event.target.value = '';
   };
 
   const handleClearFile = () => {
@@ -101,7 +96,7 @@ const ExcelUpload = () => {
     setFileName('');
     setJsonData(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''; // Clear file input
+      fileInputRef.current.value = '';
     }
     console.log('File selection cleared');
   };
@@ -120,40 +115,31 @@ const ExcelUpload = () => {
     setIsUploading(true);
 
     try {
-      const response = await fetch('/api/uploads/excel', {
+      const result = await apiRequest({
+        url: '/api/uploads/excel',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-        body: JSON.stringify({
+        body: {
           jsonData: jsonDataToUpload,
           companyId,
           overwrite: true,
-        }),
+        },
+        token: session?.accessToken,
       });
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
+      if (result.success) {
         const bookingCount = result.bookings.inserted + result.bookings.updated;
         const refundCount = result.refunds.inserted + result.refunds.updated;
         const successMsg = `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`;
         setFeedbackMessage(successMsg);
         setIsFeedbackError(false);
         setShowFeedback(true);
-        // Reset form
         handleClearFile();
         setActiveTab('bookings');
       } else {
-        const errorMsg = `Error: ${result.error || 'Upload failed'}`;
-        setFeedbackMessage(errorMsg);
-        setIsFeedbackError(true);
-        setShowFeedback(true);
+        throw new Error(result.error || 'Upload failed');
       }
     } catch (err) {
-      const errorMsg = `Error: ${err.message}`;
-      setFeedbackMessage(errorMsg);
+      setFeedbackMessage(`Error: ${err.message}`);
       setIsFeedbackError(true);
       setShowFeedback(true);
     } finally {
@@ -173,8 +159,7 @@ const ExcelUpload = () => {
 
   const handleSubmit = async (values) => {
     if (!jsonData || !selectedFile || !values.company) {
-      const errorMsg = 'Please select a file and company first.';
-      setFeedbackMessage(errorMsg);
+      setFeedbackMessage('Please select a file and company first.');
       setIsFeedbackError(true);
       setShowFeedback(true);
       return;
@@ -186,63 +171,46 @@ const ExcelUpload = () => {
     setIsUploading(true);
 
     try {
-      // Check if bookings exist for the company
-      const checkResponse = await fetch(`/api/uploads/excel?companyId=${companyId}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
+      // Check if bookings exist
+      const { exists } = await apiRequest({
+        url: `/api/uploads/excel?companyId=${companyId}`,
+        token: session?.accessToken,
       });
 
-      if (!checkResponse.ok) throw new Error('Failed to check existing records');
-      const { exists } = await checkResponse.json();
-
-      let overwrite = false;
       if (exists) {
-        // Store pending data for dialog confirmation
         setPendingCompanyId(companyId);
         setPendingJsonData(jsonData);
         setConfirmMessage(`Do you want to update existing records for ${companyName}?`);
         setShowConfirmDialog(true);
-        setIsUploading(false); // Pause upload until confirmed
-        return; // Exit early to wait for dialog
+        setIsUploading(false);
+        return;
       }
 
-      // If no existing records, proceed directly with upload
-      const response = await fetch('/api/uploads/excel', {
+      const result = await apiRequest({
+        url: '/api/uploads/excel',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-        body: JSON.stringify({
+        body: {
           jsonData,
           companyId,
-          overwrite,
-        }),
+          overwrite: false,
+        },
+        token: session?.accessToken,
       });
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
+      if (result.success) {
         const bookingCount = result.bookings.inserted + result.bookings.updated;
         const refundCount = result.refunds.inserted + result.refunds.updated;
         const successMsg = `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`;
         setFeedbackMessage(successMsg);
         setIsFeedbackError(false);
         setShowFeedback(true);
-        // Reset form
         handleClearFile();
         setActiveTab('bookings');
       } else {
-        const errorMsg = `Error: ${result.error || 'Upload failed'}`;
-        setFeedbackMessage(errorMsg);
-        setIsFeedbackError(true);
-        setShowFeedback(true);
+        throw new Error(result.error || 'Upload failed');
       }
     } catch (err) {
-      const errorMsg = `Error: ${err.message}`;
-      setFeedbackMessage(errorMsg);
+      setFeedbackMessage(`Error: ${err.message}`);
       setIsFeedbackError(true);
       setShowFeedback(true);
     } finally {
@@ -255,7 +223,6 @@ const ExcelUpload = () => {
       .oneOf(companyOptions.map((option) => option.value), 'Must select a valid company'),
   });
 
-  // Tab switch component
   const TabSwitch = ({ activeTab, setActiveTab }) => (
     <div className="flex border-b border-gray-200 mb-4">
       <button
@@ -285,7 +252,6 @@ const ExcelUpload = () => {
     ? (jsonData?.bookings || []).slice(0, 10) 
     : (jsonData?.refunds || []).slice(0, 10);
 
-  // FeedbackDialog onClose handler
   const handleFeedbackClose = () => {
     setShowFeedback(false);
     setFeedbackMessage('');

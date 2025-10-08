@@ -1,8 +1,9 @@
+// usersDetails.jsx
 import React, { useState, useEffect } from 'react';
 import DataTable from '../common/dataTable';
 import EditDialog from './EditDialog';
-
 import { useSession } from 'next-auth/react';
+import { apiRequest } from '@/utils/apiRequest'; // Import the utility
 import CustomDialog from '../common/customDialog';
 
 const UsersDetails = () => {
@@ -12,20 +13,17 @@ const UsersDetails = () => {
   const [error, setError] = useState(null);
   const [editCustomer, setEditCustomer] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [dialogType, setDialogType] = useState(null); // 'confirmDelete' or 'error'
+  const [dialogType, setDialogType] = useState(null);
   const [dialogMessage, setDialogMessage] = useState('');
   const [deleteId, setDeleteId] = useState(null);
 
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch('/api/customers/read', {
-          headers: {
-            Authorization: `Bearer ${session?.accessToken}`,
-          },
+        const { customers } = await apiRequest({
+          url: '/api/customers/read',
+          token: session?.accessToken,
         });
-        if (!response.ok) throw new Error('Failed to fetch customers');
-        const { customers } = await response.json();
         const formattedCustomers = customers.map(cust => ({ ...cust, id: cust._id }));
         setCustomers(formattedCustomers);
       } catch (err) {
@@ -46,15 +44,12 @@ const UsersDetails = () => {
 
   const confirmDelete = async () => {
     try {
-      const response = await fetch('/api/customers/delete', {
+      await apiRequest({
+        url: '/api/customers/delete',
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-        body: JSON.stringify({ id: deleteId }),
+        body: { id: deleteId },
+        token: session?.accessToken,
       });
-      if (!response.ok) throw new Error('Failed to delete');
       setCustomers(prev => prev.filter(cust => cust.id !== deleteId));
       setOpenDialog(false);
     } catch (err) {
@@ -69,16 +64,12 @@ const UsersDetails = () => {
 
   const handleSave = async (updatedCustomer) => {
     try {
-      const response = await fetch('/api/customers/update', {
+      const { customer } = await apiRequest({
+        url: '/api/customers/update',
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-        body: JSON.stringify(updatedCustomer),
+        body: updatedCustomer,
+        token: session?.accessToken,
       });
-      if (!response.ok) throw new Error('Failed to update');
-      const { customer } = await response.json();
       setCustomers(prev =>
         prev.map(cust => (cust.id === customer._id ? { ...customer, id: customer._id } : cust))
       );
