@@ -60,9 +60,9 @@ const convertToSchemaData = (row, columnMap) => {
           }
         } else if (value && typeof value === 'string') {
           try {
-            const [day, month, year] = value.split('-').map(Number);
+            const [year, month, day] = value.split('-').map(Number);
             if (day && month && year) {
-              value = new Date(year, month - 1, day);
+              value = new Date(year, month-1, day);
               if (isNaN(value.getTime())) value = null;
             } else {
               value = new Date(value);
