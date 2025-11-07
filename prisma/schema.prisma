@@ -1,0 +1,124 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl  = env("SHADOW_DATABASE_URL")
+}
+
+model Admin {
+  adminId      Int      @id @default(autoincrement()) @map("admin_id")
+  email        String   @unique @db.NVarChar(100)
+  passwordHash String   @map("password_hash") @db.NVarChar(255)
+  fullName     String?  @map("full_name") @db.NVarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime2
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime2
+
+  clients      Client[]
+  uploadLogs   UploadLog[]
+
+  @@map("Admins")
+}
+
+model Client {
+  clientId        Int      @id @default(autoincrement()) @map("client_id")
+  username        String   @unique @db.NVarChar(50)
+  passwordHash    String   @map("password_hash") @db.NVarChar(255)
+  email1          String   @db.NVarChar(100)
+  email2          String?  @db.NVarChar(100)
+  email3          String?  @db.NVarChar(100)
+  mobileNo        String?  @map("mobile_no") @db.NVarChar(20)
+  companyName     String   @map("company_name") @db.NVarChar(150)
+  subCorporate    String?  @map("sub_corporate") @db.NVarChar(150)
+  subEntity       String   @map("sub_entity") @db.NVarChar(150)
+  gstNo           String?  @map("gst_no") @db.NVarChar(50)
+  address         String?  @db.NVarChar(Max)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime2
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime2
+  createdByAdminId Int     @map("created_by_admin_id")
+
+  bookings        Booking[]
+  refunds         Refund[]
+  createdByAdmin  Admin    @relation(fields: [createdByAdminId], references: [adminId])
+
+  @@unique([companyName, subCorporate, subEntity])
+  @@index([companyName, subCorporate, subEntity])
+  @@map("Clients")
+}
+
+model Booking {
+  bID               Int       @id @default(autoincrement()) @map("booking_internal_id")
+  clientId          Int       @map("client_id")
+  serialNo          Int?      @map("serial_no")
+  dateOfBooking     DateTime? @map("date_of_booking") @db.DateTime2
+  pnrTicketNo       String    @map("pnr_ticket_no") @db.NVarChar(50)
+  dateOfTravel      DateTime? @map("date_of_travel") @db.DateTime2
+  passengerName     String?   @db.NVarChar(100)
+  sector            String    @db.NVarChar(100)
+  originStn         String?   @map("origin_stn") @db.NVarChar(50)
+  destinationStn    String?   @map("destination_stn") @db.NVarChar(50)
+  class             String?   @db.NVarChar(20)
+  quota             String?   @db.NVarChar(20)
+  noOfPax           Int?      @map("no_of_pax")
+  ticketAmount      Float?    @map("ticket_amount") @db.Money
+  sCharges          Float?    @map("s_charges") @db.Money
+  gst18             Float?    @map("gst_18") @db.Money
+  totalAmount       Float?    @map("total_amount") @db.Money
+  bookingId         String    @map("booking_id") @db.NVarChar(50)
+  vendeeCorporate   String?   @map("vendee_corporate") @db.NVarChar(150)
+  subCorporate      String?   @map("sub_corporate") @db.NVarChar(150)
+  subEntity         String?   @map("sub_entity") @db.NVarChar(150)
+  nttBillNo         String?   @map("ntt_bill_no") @db.NVarChar(50)
+  invoiceNo         String?   @map("invoice_no") @db.NVarChar(50)
+  statementPeriod   String?   @map("statement_period") @db.NVarChar(50)
+  gstNo             String?   @map("gst_no") @db.NVarChar(50)
+  gstState          String?   @map("gst_state") @db.NVarChar(50)
+  cgst9             Float?    @map("cgst_9") @db.Money
+  sgst9             Float?    @map("sgst_9") @db.Money
+  igst18            Float?    @map("igst_18") @db.Money
+  createdAt         DateTime  @default(now()) @map("created_at") @db.DateTime2
+
+  client            Client    @relation(fields: [clientId], references: [clientId])
+
+  @@unique([clientId, pnrTicketNo])
+  @@index([clientId, dateOfTravel])
+  @@index([pnrTicketNo])
+  @@map("Bookings")
+}
+
+model Refund {
+  rID             Int       @id @default(autoincrement()) @map("refund_internal_id")
+  clientId        Int       @map("client_id")
+  serialNo        Int?      @map("serial_no")
+  refundDate      DateTime? @map("refund_date") @db.DateTime2
+  pnrNo           String    @map("pnr_no") @db.NVarChar(50)
+  refundAmount    Float?    @map("refund_amount") @db.Money
+  vendeeCorporate String?   @map("vendee_corporate") @db.NVarChar(150)
+  subCorporate    String?   @map("sub_corporate") @db.NVarChar(150)
+  subEntity       String?   @map("sub_entity") @db.NVarChar(150)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime2
+
+  client          Client    @relation(fields: [clientId], references: [clientId])
+
+  @@unique([clientId, pnrNo])
+  @@index([clientId, refundDate])
+  @@index([pnrNo])
+  @@map("Refunds")
+}
+
+model UploadLog {
+  logId         Int      @id @default(autoincrement()) @map("log_id")
+  adminId       Int      @map("admin_id")
+  uploadType    String   @map("upload_type") @db.NVarChar(20)
+  fileName      String?  @map("file_name") @db.NVarChar(255)
+  rowsInserted  Int?     @map("rows_inserted")
+  uploadDate    DateTime @default(now()) @map("upload_date") @db.DateTime2
+  notes         String?  @db.NVarChar(Max)
+
+  admin         Admin    @relation(fields: [adminId], references: [adminId])
+
+  @@map("Upload_Logs")
+}

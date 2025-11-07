@@ -42,3 +42,5 @@ next-env.d.ts
 sendgrid.env
 
 .vercel
+
+/lib/generated/prisma

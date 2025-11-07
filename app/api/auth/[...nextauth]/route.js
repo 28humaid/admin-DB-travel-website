@@ -1,73 +1,82 @@
-import { connectMongoDB } from "@/lib/mongodb";
-import NextAuth from "next-auth/next";
-import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import Admin from "@/models/adminAuth";
+import NextAuth from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/prisma';
 
 if (!process.env.NEXTAUTH_SECRET) {
-  throw new Error("NEXTAUTH_SECRET is not defined in environment variables");
+  throw new Error('NEXTAUTH_SECRET is missing in .env');
 }
 
 export const authOptions = {
   providers: [
     CredentialsProvider({
-      name: "credentials",
-      credentials: {},
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
       async authorize(credentials) {
-        const { email, password } = credentials;
+        if (!credentials?.email || !credentials?.password) return null;
+
         try {
-          await connectMongoDB();
-          const user = await Admin.findOne({ email });
-          if (!user) {
-            return null;
-          }
-          const passwordsMatch = await bcrypt.compare(password, user.password);
-          if (!passwordsMatch) {
-            return null;
-          }
-          // Return user with role
-          return { id: user._id.toString(), email: user.email, role: user.role || "admin" };
-        } catch (error) {
-          console.error("Authorize error:", error);
+          const admin = await prisma.admin.findUnique({
+            where: { email: credentials.email },
+            select: {
+              adminId: true,
+              email: true,
+              passwordHash: true,
+              fullName: true,
+            },
+          });
+
+          if (!admin) return null;
+
+          const isValid = await bcrypt.compare(credentials.password, admin.passwordHash);
+          if (!isValid) return null;
+
+          // Return only serializable data
+          return {
+            id: admin.adminId.toString(),
+            email: admin.email,
+            name: admin.fullName ?? undefined,
+            role: 'admin', // you can add a `role` column later
+          };
+        } catch (err) {
+          console.error('Auth error:', err);
           return null;
         }
       },
     }),
   ],
+
   session: {
-    strategy: "jwt",
-    maxAge: 24 * 60 * 60,
+    strategy: 'jwt',
+    maxAge: 24 * 60 * 60, // 24 hrs
   },
+
   callbacks: {
     async jwt({ token, user }) {
-      // When user logs in, add role to token
-      console.log("JWT callback - user:", user, "token:", token);
+      // First call (login): `user` is present
       if (user) {
-        token.role = user.role;
+        token.id = user.id;
+        token.role = user.role ?? 'admin';
       }
       return token;
     },
+
     async session({ session, token }) {
-      // Add role to session.user
-      console.log("Session callback - token:", token);
-    //   if (token?.role) {
-    //     session.user.role = token.role;
-    //   }
-      // if (session.user) {
-      //   session.user.role = token.role;
-      // }
-      if (token?.role) {
-        session.user = session.user || {};
-        session.user.role = token.role;
-      }
-      console.log("Final session:", session);
+      if (token?.id) session.user.id = token.id;
+      if (token?.role) session.user.role = token.role;
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+
   pages: {
-    signIn: "/",
+    signIn: '/',
+    error: '/auth/error',
   },
+
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);

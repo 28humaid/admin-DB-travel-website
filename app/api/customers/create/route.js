@@ -1,75 +1,126 @@
-import { NextResponse } from "next/server";
-import Customer from "@/models/customer";
-import { userName } from "@/utils/userNameGenerator";
-import { tempPassword } from "@/utils/passwordGenerator";
-import { sendAuthEmail } from "@/lib/emailService";
-import { connectMongoDB } from "@/lib/mongodb";
-import { getAuthSession } from "@/lib/getAuthSession";
-import bcrypt from 'bcrypt';
+// app/api/customers/create/route.js
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { prisma } from '@/lib/prisma';
+import { userName } from '@/utils/userNameGenerator';
+import { tempPassword } from '@/utils/passwordGenerator';
+import { sendAuthEmail } from '@/lib/emailService';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request) {
-  const session = await getAuthSession(request);
-  
-  if (!session || session.user.role !== "admin"){
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  // --- 1. Auth Check ---
+  const session = await getServerSession(authOptions);
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    // Initialize MongoDB connection
-    await connectMongoDB();
+  const adminId = Number(session.user.id);
 
-    // Extract form data from request body
+  try {
+    // --- 2. Parse & Validate Input ---
+    const body = await request.json();
     const {
       email1,
       email2,
       email3,
       companyName,
-      phoneNumber,
+      subCorporate = null,
       subEntity,
-      gstNumber,
-      addressLine1,
-      addressLine2,
-    } = await request.json();
+      mobileNo = null,
+      gstNo = null,
+      addressLine1 = '',
+      addressLine2 = '',
+    } = body;
 
-    // Create email array
+    if (!email1 || !companyName || !subEntity) {
+      return NextResponse.json(
+        { message: 'Missing required fields: email1, companyName, subEntity' },
+        { status: 400 }
+      );
+    }
+
+    // --- 3. Build Data ---
     const emails = [email1];
     if (email2) emails.push(email2);
     if (email3) emails.push(email3);
 
-    // Combine address
-    const address = `${addressLine1}${addressLine2 ? ", " + addressLine2 : ""}`;
+    const address = [addressLine1, addressLine2]
+      .filter(Boolean)
+      .join(', ')
+      .trim() || null;
 
-    // Generate username and password
-    const generatedUsername = userName(); // Ensure this function returns a value
-    const generatedPassword = tempPassword(); // Ensure this function returns a value
+    const generatedUsername = userName(); // e.g., "client_abc123"
+    const generatedPassword = tempPassword(); // e.g., "Temp@123"
 
-    // Create new customer document
-    const customer = new Customer({
-      emails,
-      companyName,
-      phoneNumber,
-      subEntity,
-      gstNumber,
-      address,
-      username: generatedUsername,
-      // password: generatedPassword, // ISKO HASH KRNA HAI DHYAN SE!
-      password:await bcrypt.hash(generatedPassword, 12),
+    const passwordHash = await bcrypt.hash(generatedPassword, 12);
+
+    // --- 4. Create Client in DB (Prisma + SQL Server) ---
+    const client = await prisma.client.create({
+      data: {
+        username: generatedUsername,
+        passwordHash,
+        email1,
+        email2: email2 || null,
+        email3: email3 || null,
+        mobileNo,
+        companyName,
+        subCorporate,
+        subEntity,
+        gstNo,
+        address,
+        createdByAdminId: adminId,
+      },
     });
 
-    // Save to MongoDB
-    await customer.save();
+    // --- 5. Send Email ---
+    try {
+      await sendAuthEmail(
+        emails,
+        generatedUsername,
+        generatedPassword,
+        companyName,
+        gstNo
+      );
+    } catch (emailError) {
+      console.error('Email failed (but client created):', emailError);
+      // Don't fail the whole request — client is already created
+    }
 
-    // Send authentication email
-    await sendAuthEmail(emails, generatedUsername, generatedPassword, companyName, gstNumber);
+    // --- 6. Optional: Log to UploadLog ---
+    await prisma.uploadLog.create({
+      data: {
+        adminId,
+        uploadType: 'CLIENT_CREATE',
+        fileName: null,
+        rowsInserted: 1,
+        notes: `Created client: ${companyName} (${subEntity}), username: ${generatedUsername}`,
+      },
+    });
 
+    // --- 7. Success Response ---
     return NextResponse.json(
-      { message: "Customer created successfully" },
+      {
+        message: 'Customer created successfully',
+        clientId: client.clientId,
+        username: generatedUsername,
+      },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating customer:", error);
+    console.error('Error creating customer:', error);
+
+    // --- Handle Unique Constraint Violations ---
+    if (error.code === 'P2002') {
+      const field = error.meta?.target?.[0] || 'unknown';
+      return NextResponse.json(
+        { message: `Duplicate ${field}. Already exists.` },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
-      { message: "Failed to create customer", error: error.message },
+      { message: 'Failed to create customer', error: error.message },
       { status: 500 }
     );
   }

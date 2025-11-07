@@ -1,25 +1,69 @@
-import { NextResponse } from "next/server";
-import Customer from "@/models/customer";
-import { connectMongoDB } from "@/lib/mongodb";
-import { getAuthSession } from "@/lib/getAuthSession";
+// app/api/customers/read/route.js
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request) {
-    const session = await getAuthSession(request)
-    // console.log("xyxyxyyxx",session);
-    
-      if (!session || session.user.role !== "admin"){
-        // console.log(session);
-        // console.log('sdfsdfsfsdfsd Session user role:',session.user.role);
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
+  // --- 1. Admin Auth Check ---
+  const session = await getServerSession(authOptions);
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const adminId = Number(session.user.id);
+
   try {
-    await connectMongoDB();
-    const customers = await Customer.find({}); // Exclude password for security
-    return NextResponse.json({ customers }, { status: 200 });
+    // --- 2. Log action ---
+    await prisma.uploadLog.create({
+      data: {
+        adminId,
+        uploadType: 'CLIENT_READ',
+        fileName: null,
+        rowsInserted: 0,
+        notes: `Admin viewed all clients`,
+      },
+    });
+
+    // --- 3. Fetch all clients (exclude passwordHash) ---
+    const clients = await prisma.client.findMany({
+      select: {
+        clientId: true,
+        username: true,
+        email1: true,
+        email2: true,
+        email3: true,
+        mobileNo: true,
+        companyName: true,
+        subCorporate: true,
+        subEntity: true,
+        gstNo: true,
+        address: true,
+        createdAt: true,
+        updatedAt: true,
+        // passwordHash is NOT selected → secure by default
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // --- 4. Return in same shape as Mongo ---
+    return NextResponse.json({ customers: clients }, { status: 200 });
   } catch (error) {
-    console.error("Error fetching customers:", error);
+    console.error('Error fetching customers:', error);
+
+    // Optional: log error
+    await prisma.uploadLog.create({
+      data: {
+        adminId,
+        uploadType: 'CLIENT_READ',
+        fileName: null,
+        rowsInserted: 0,
+        notes: `ERROR: Failed to read clients – ${error.message}`,
+      },
+    }).catch(() => {});
+
     return NextResponse.json(
-      { message: "Failed to fetch customers", error: error.message },
+      { message: 'Failed to fetch customers', error: error.message },
       { status: 500 }
     );
   }
