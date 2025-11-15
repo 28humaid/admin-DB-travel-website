@@ -22,7 +22,7 @@ const Logout = () => {
         style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
         >
             <div className='flex flex-col bg-blue-300 p-4 rounded-lg gap-2'>
-                <p>Are you sure you want to logout?</p>
+                <p className="text-sm md:text-xl">Are you sure you want to logout?</p>
                 <div className='flex items-center justify-center'><AlertTriangle className="w-24 h-24 text-red-500" /></div>
                 <div className="flex flex-col md:flex-row items-center justify-center gap-2">
 

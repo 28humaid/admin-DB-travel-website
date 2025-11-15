@@ -1,357 +1,323 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FileUp, FileSpreadsheet, X } from 'lucide-react';
 import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
 import ComboBox from '../common/comboBox';
 import { useSession } from 'next-auth/react';
 import DataTable from '../common/dataTable';
-import { ExcelToJsonConverter } from '@/utils/excelToJSON';
-import { apiRequest } from '@/utils/apiRequest';
-import CustomDialog from '../common/customDialog';
 import FeedbackDialog from '../common/feedbackDialog';
 import { getAuthToken } from '@/utils/getAuthToken';
 
+// Client-side Excel parser
+import * as XLSX from 'xlsx';
+import Loader from '../common/loader';
+
 const ExcelUpload = () => {
   const { data: session } = useSession();
-  const [customers, setCustomers] = useState([]);
   const [companyOptions, setCompanyOptions] = useState([]);
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [jsonData, setJsonData] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('bookings');
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState('');
-  const [pendingCompanyId, setPendingCompanyId] = useState(null);
-  const [pendingJsonData, setPendingJsonData] = useState(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [isFeedbackError, setIsFeedbackError] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  // Client-side preview (before upload)
+  const [clientPreview, setClientPreview] = useState(null);
+
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackError, setFeedbackError] = useState(false);
+
+  const openFeedback = (msg, isError = false) => {
+    setFeedbackMessage(msg);
+    setFeedbackError(isError);
+    setFeedbackOpen(true);
+  };
+
+  // === FETCH COMPANIES ===
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchCompanies = async () => {
       try {
-        const { customers } = await apiRequest({
-          url: '/api/customers/read',
-          token: getAuthToken(),
+        const res = await fetch('/api/customers/read', {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
         });
-        const formattedCustomers = customers.map(cust => ({ ...cust, id: cust._id }));
-        setCustomers(formattedCustomers);
-        const options = formattedCustomers.map(cust => ({
-          value: cust._id,
-          label: cust.companyName
+        if (!res.ok) throw new Error('Failed to fetch companies');
+        const { customers } = await res.json();
+        const options = customers.map(c => ({
+          value: c.clientId,
+          label: c.companyName
         }));
         setCompanyOptions(options);
       } catch (err) {
-        setError(err.message);
+        openFeedback('Failed to load companies.', true);
       } finally {
         setLoading(false);
       }
     };
-    if (session) fetchCustomers();
+    if (session) fetchCompanies();
   }, [session]);
 
-  const handleButtonClick = () => {
-    console.log('Choose Excel button clicked');
-    fileInputRef.current?.click();
-  };
+  const handleButtonClick = () => fileInputRef.current?.click();
 
-  const handleFileUpload = (event) => {
-    console.log('handleFileUpload triggered');
-    const file = event.target.files[0];
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
     if (!file) {
-      console.log('No file selected');
       setSelectedFile(null);
       setFileName('');
+      setClientPreview(null);
+      setPreviewData(null);
       return;
     }
-    console.log('Selected file:', file.name, 'Type:', file.type);
-    if (
-      file.type === 'application/vnd.ms-excel' ||
-      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      file.name.endsWith('.xls') ||
-      file.name.endsWith('.xlsx')
-    ) {
-      console.log('Valid Excel file selected:', file.name);
-      setSelectedFile(file);
-      setFileName(file.name);
-      setJsonData(null);
-    } else {
-      console.error('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
+
+    const validTypes = [
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    if (!validTypes.includes(file.type) && !/\.(xls|xlsx)$/i.test(file.name)) {
+      openFeedback('Please upload .xls or .xlsx file.', true);
       setSelectedFile(null);
       setFileName('');
-      setFeedbackMessage('Invalid file type. Please upload a valid Excel file (.xls, .xlsx)');
-      setIsFeedbackError(true);
-      setShowFeedback(true);
+      setClientPreview(null);
+      return;
     }
-    event.target.value = '';
+
+    if (file.size > 10 * 1024 * 1024) {
+      openFeedback('File too large. Max 10MB.', true);
+      setSelectedFile(null);
+      setFileName('');
+      setClientPreview(null);
+      return;
+    }
+
+    setSelectedFile(file);
+    setFileName(file.name);
+    setPreviewData(null);
+    setClientPreview(null);
+
+    // === CLIENT-SIDE PREVIEW ===
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = ev.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const parseSheet = (name) => {
+          const sheet = workbook.Sheets[name];
+          if (!sheet) return [];
+          const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+          return json.slice(0, 10);
+        };
+
+        const bookings = 
+          parseSheet('Bookings') || 
+          parseSheet('Booking') || 
+          parseSheet('bookings') || 
+          parseSheet('Sheet1') || 
+          [];
+
+        const refunds = 
+          parseSheet('Refunds') || 
+          parseSheet('Refund') || 
+          parseSheet('refunds') || 
+          parseSheet('Sheet2') || 
+          [];
+
+        setClientPreview({ bookings, refunds });
+        setActiveTab(bookings.length > 0 ? 'bookings' : 'refunds');
+      } catch (err) {
+        openFeedback('Failed to read Excel file. Is it corrupted?', true);
+        setClientPreview(null);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
   };
 
   const handleClearFile = () => {
     setSelectedFile(null);
     setFileName('');
-    setJsonData(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    console.log('File selection cleared');
+    setPreviewData(null);
+    setClientPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleJsonConverted = (data) => {
-    console.log('Converted JSON:', data);
-    setJsonData(data);
-  };
+  const uploadFile = async (formData) => {
+  setIsUploading(true);
+  try {
+    const res = await fetch('/api/uploads/excel', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      body: formData,
+    });
+    const result = await res.json();
 
-  const handleConfirmOverwrite = async () => {
-    setShowConfirmDialog(false);
-    const companyId = pendingCompanyId;
-    const jsonDataToUpload = pendingJsonData;
-    const companyName = companyOptions.find(option => option.value === companyId)?.label || 'the company';
+    if (!res.ok) throw new Error(result.error || 'Upload failed');
 
-    setIsUploading(true);
-
-    try {
-      const result = await apiRequest({
-        url: '/api/uploads/excel',
-        method: 'POST',
-        body: {
-          jsonData: jsonDataToUpload,
-          companyId,
-          overwrite: true,
-        },
-        token: getAuthToken(),
-      });
-
-      if (result.success) {
-        const bookingCount = result.bookings.inserted + result.bookings.updated;
-        const refundCount = result.refunds.inserted + result.refunds.updated;
-        const successMsg = `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`;
-        setFeedbackMessage(successMsg);
-        setIsFeedbackError(false);
-        setShowFeedback(true);
-        handleClearFile();
-        setActiveTab('bookings');
-      } else {
-        throw new Error(result.error || 'Upload failed');
-      }
-    } catch (err) {
-      setFeedbackMessage(`Error: ${err.message}`);
-      setIsFeedbackError(true);
-      setShowFeedback(true);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleCancelOverwrite = () => {
-    setShowConfirmDialog(false);
-    setFeedbackMessage('Upload cancelled.');
-    setIsFeedbackError(true);
-    setShowFeedback(true);
+    const msg = `Inserted ${result.bookings.inserted} bookings (${result.bookings.skipped} skipped) and ${result.refunds.inserted} refunds (${result.refunds.skipped} skipped)`;
+    openFeedback(msg, false);
+    setPreviewData(result.preview);
+    setActiveTab('bookings');
+    handleClearFile();
+  } catch (err) {
+    openFeedback(err.message, true);
+  } finally {
     setIsUploading(false);
-    setPendingCompanyId(null);
-    setPendingJsonData(null);
-  };
+  }
+};
 
   const handleSubmit = async (values) => {
-    if (!jsonData || !selectedFile || !values.company) {
-      setFeedbackMessage('Please select a file and company first.');
-      setIsFeedbackError(true);
-      setShowFeedback(true);
-      return;
-    }
+  if (!selectedFile || !values.company) {
+    openFeedback('Please select a file and company.', true);
+    return;
+  }
 
-    const companyId = values.company;
-    const companyName = companyOptions.find(option => option.value === companyId)?.label || 'the company';
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+  formData.append('companyId', values.company);
 
-    setIsUploading(true);
+  setIsUploading(true);
+  try {
+    await uploadFile(formData);
+  } catch (err) {
+    openFeedback(err.message, true);
+  } finally {
+    setIsUploading(false);
+  }
+};
 
-    try {
-      // Check if bookings exist
-      const { exists } = await apiRequest({
-        url: `/api/uploads/excel?companyId=${companyId}`,
-        token: getAuthToken(),
-      });
-
-      if (exists) {
-        setPendingCompanyId(companyId);
-        setPendingJsonData(jsonData);
-        setConfirmMessage(`Do you want to update existing records for ${companyName}?`);
-        setShowConfirmDialog(true);
-        setIsUploading(false);
-        return;
-      }
-
-      const result = await apiRequest({
-        url: '/api/uploads/excel',
-        method: 'POST',
-        body: {
-          jsonData,
-          companyId,
-          overwrite: false,
-        },
-        token: getAuthToken(),
-      });
-
-      if (result.success) {
-        const bookingCount = result.bookings.inserted + result.bookings.updated;
-        const refundCount = result.refunds.inserted + result.refunds.updated;
-        const successMsg = `Uploaded ${bookingCount} bookings (${result.bookings.skipped} skipped) and ${refundCount} refunds (${result.refunds.skipped} skipped)`;
-        setFeedbackMessage(successMsg);
-        setIsFeedbackError(false);
-        setShowFeedback(true);
-        handleClearFile();
-        setActiveTab('bookings');
-      } else {
-        throw new Error(result.error || 'Upload failed');
-      }
-    } catch (err) {
-      setFeedbackMessage(`Error: ${err.message}`);
-      setIsFeedbackError(true);
-      setShowFeedback(true);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const validationSchema = Yup.object({
-    company: Yup.string()
-      .oneOf(companyOptions.map((option) => option.value), 'Must select a valid company'),
-  });
-
-  const TabSwitch = ({ activeTab, setActiveTab }) => (
+  const TabSwitch = () => (
     <div className="flex border-b border-gray-200 mb-4">
-      <button
-        onClick={() => setActiveTab('bookings')}
-        className={`px-4 py-2 text-sm font-medium ${
-          activeTab === 'bookings'
-            ? 'border-blue-500 text-blue-600 border-b-2'
-            : 'text-gray-500 hover:text-gray-700'
-        }`}
-      >
-        Bookings (Top 10)
-      </button>
-      <button
-        onClick={() => setActiveTab('refunds')}
-        className={`px-4 py-2 text-sm font-medium ml-1 ${
-          activeTab === 'refunds'
-            ? 'border-blue-500 text-blue-600 border-b-2'
-            : 'text-gray-500 hover:text-gray-700'
-        }`}
-      >
-        Refunds (Top 10)
-      </button>
+      {['bookings', 'refunds'].map(tab => {
+        const hasData = 
+          (tab === 'bookings' && (clientPreview?.bookings?.length || previewData?.bookings?.length)) ||
+          (tab === 'refunds' && (clientPreview?.refunds?.length || previewData?.refunds?.length));
+
+        return (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            disabled={!hasData}
+            className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+              activeTab === tab
+                ? 'border-blue-500 text-blue-600 border-b-2'
+                : hasData
+                ? 'text-gray-500 hover:text-gray-700'
+                : 'text-gray-300 cursor-not-allowed'
+            }`}
+          >
+            {tab} (Top 10)
+          </button>
+        );
+      })}
     </div>
   );
 
-  const previewData = activeTab === 'bookings' 
-    ? (jsonData?.bookings || []).slice(0, 10) 
-    : (jsonData?.refunds || []).slice(0, 10);
-
-  const handleFeedbackClose = () => {
-    setShowFeedback(false);
-    setFeedbackMessage('');
-  };
-
   return (
-    <div className="w-full min-h-[90%] flex flex-col items-center justify-center gap-4">
-      {!session && <div className="container mx-auto p-4 text-red-500">Please log in</div>}
-      {error && <div className="container mx-auto p-4 text-red-500">Error: {error}</div>}
-      {session && (
+    <div className="w-full min-h-screen flex flex-col items-center justify-start gap-6 p-6">
+      {!session ? (<Loader message="Please wait..."/>) : (
         <>
           <button
             onClick={handleButtonClick}
-            className="w-3/4 md:w-1/2 text-left p-2 rounded-md text-sm md:text-lg flex flex-col justify-center items-center gap-2 hover:bg-blue-300 border"
+            className="w-full max-w-lg p-8 rounded-2xl border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex flex-col items-center gap-4 transition-all"
           >
-            <FileUp size={40} />
-            Choose .xls/xlsx file
+            <FileUp size={56} className="text-blue-600" />
+            <span className="text-xl md:text-2xl font-semibold text-gray-700">Choose .xls/.xlsx file</span>
           </button>
+
           <input
             type="file"
             ref={fileInputRef}
-            accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept=".xls,.xlsx"
             onChange={handleFileUpload}
             className="hidden"
           />
+
           {fileName && (
-            <div className="relative flex items-center gap-1 text-sm md:text-lg">
-              <FileSpreadsheet size={24} />
-              <span>{fileName}</span>
+            <div className="flex items-center gap-4 text-lg px-4 py-2">
+              <FileSpreadsheet size={28} className="text-green-600" />
+              <span className="font-medium">{fileName}</span>
               <button
                 onClick={handleClearFile}
-                className="absolute -right-7 top-0 p-1 border text-red-500 rounded-full bg-white"
+                className="p-1 text-red-600 hover:bg-red-50 rounded transition"
                 title="Clear file"
               >
-                <X size={14} />
+                <X size={18} />
               </button>
             </div>
           )}
-          {jsonData && (
-            <>
-              <TabSwitch activeTab={activeTab} setActiveTab={setActiveTab} />
-              <DataTable 
-                data={previewData} 
-                onEdit={() => {}} 
-                onDelete={() => {}} 
-                hideActions={true} 
+
+          {/* CLIENT-SIDE PREVIEW */}
+          {clientPreview && (
+            <div className="w-full max-w-4xl rounded-xl shadow-lg p-6 bg-white">
+              <h3 className="text-lg font-semibold mb-2 text-gray-700">Preview (Top 10 rows)</h3>
+              <TabSwitch />
+              <DataTable
+                data={clientPreview[activeTab] || []}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                hideActions={true}
               />
-            </>
+            </div>
           )}
+
+          {/* SERVER-SIDE PREVIEW */}
+          {previewData && (
+            <div className="w-full max-w-4xl rounded-xl shadow-lg p-6 bg-white">
+              <h3 className="text-lg font-semibold mb-2 text-green-700">Upload Successful – Preview</h3>
+              <TabSwitch />
+              <DataTable
+                data={previewData[activeTab] || []}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                hideActions={true}
+              />
+            </div>
+          )}
+
           <Formik
             initialValues={{ company: '' }}
-            validationSchema={validationSchema}
+            // validationSchema={getValidationSchema()}
             onSubmit={handleSubmit}
+            enableReinitialize={true}
           >
-            {({ isValid, dirty, ...formikProps }) => (
-              <Form className="w-1/2">
+            {({ isValid, dirty, ...props }) => (
+              <Form className="w-full max-w-md p-6">
                 <ComboBox
                   name="company"
-                  label="Select Company Name"
-                  placeholder="Type to filter companies"
+                  label="Select Company"
+                  placeholder="Search companies..."
                   options={companyOptions}
-                  formik={formikProps}
+                  formik={props}
                   isLoading={loading}
                 />
                 <button
                   type="submit"
-                  disabled={!selectedFile || !jsonData || !isValid || !dirty || isUploading}
-                  className={`w-full p-2 rounded-md text-lg flex justify-center items-center gap-2 text-white ${
-                    selectedFile && jsonData && isValid && dirty && !isUploading
-                      ? 'bg-blue-500 hover:bg-blue-600'
+                  disabled={!selectedFile || !isValid || !dirty || isUploading}
+                  className={`w-full mt-6 p-3 rounded-lg font-bold text-white transition-all ${
+                    selectedFile && isValid && dirty && !isUploading
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md'
                       : 'bg-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  {isUploading ? 'Uploading...' : 'Submit'}
+                  {isUploading ? 'Uploading...' : 'Upload Excel'}
                 </button>
               </Form>
             )}
           </Formik>
-          {selectedFile && !jsonData && (
-            <ExcelToJsonConverter file={selectedFile} onConvert={handleJsonConverted} />
-          )}
+          {isUploading && <Loader message="Uploading..."/>}
         </>
       )}
-      <CustomDialog
-        open={showConfirmDialog}
-        onClose={handleCancelOverwrite}
-        type="confirmOverwrite"
-        message={confirmMessage}
-        onConfirm={handleConfirmOverwrite}
-        title="Confirm Update"
-        confirmButtonText="Update"
-        cancelButtonText="Cancel"
-      />
+
       <FeedbackDialog
-        isOpen={showFeedback}
+        isOpen={feedbackOpen}
         message={feedbackMessage}
-        isError={isFeedbackError}
-        onClose={handleFeedbackClose}
+        isError={feedbackError}
+        onClose={() => setFeedbackOpen(false)}
       />
+      {loading && <Loader message="Please wait..."/> }
     </div>
   );
 };

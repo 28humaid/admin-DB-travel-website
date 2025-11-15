@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { MenuIcon, XIcon, Notebook, Pencil, MonitorUp, LogOut } from 'lucide-react';
+import { MenuIcon, XIcon, Notebook, Pencil, MonitorUp, LogOut, FileSpreadsheet } from 'lucide-react';
 
 const iconMap = {
   Pencil: Pencil,
   Notebook: Notebook,
   MonitorUp: MonitorUp,
   LogOut: LogOut,
+  FileSpreadsheet:FileSpreadsheet,
 };
 
 const Sidebar = ({ options = [] }) => {

@@ -1,341 +1,216 @@
-// app/api/uploads/excel/route.ts
+// app/api/uploads/excel/route.js
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
-// import ExcelJS from 'exceljs';
+import { read, utils } from 'xlsx';
+import { PrismaClient } from '@prisma/client';
+import { authOptions } from '../../auth/[...nextauth]/route';
+import { getServerSession } from 'next-auth/next';
 
-// -------------------------------
-// Column Mappings (unchanged)
-const bookingsColumnMap = {
-  'S. No.': 'sNo',
-  'Date of Booking': 'dateOfBooking',
-  'PNR/Ticket #': 'pnrTicket',
-  'Date of Travel': 'dateOfTravel',
-  'Passenger Name': 'passengerName',
-  'Sector': 'sector',
-  'Origin Stn.': 'originStn',
-  'Destination Stn.': 'destinationStn',
-  'Class': 'class',
-  'Quota': 'quota',
-  'No. of Pax': 'noOfPax',
-  'Ticket Amount': 'ticketAmount',
-  'Charges': 'charges',
-  'GST (18%)': 'gst18',
-  'Total Amount': 'totalAmount',
-  'Booking ID ': 'bookingId',
-  'Corporate Name': 'corporateName',
-  'Entity Name': 'entityName',
-  'NTT Bill No.': 'nttBillNo',
-  'Invoice No.': 'invoiceNo',
-  'GST No.': 'gstNo',
-  'CGST': 'cgst',
-  'SGST': 'sgst',
-  'IGST': 'igst',
-  'UTGST': 'utgst',
-  'Statement Period': 'statementPeriod',
-  'Vendee Name': 'vendeeName',
-};
+const prisma = new PrismaClient();
 
-const refundsColumnMap = {
-  'REFUND DATE': 'refundDate',
-  'PNR_NO': 'pnrNo',
-  'REFUND': 'refund',
-  'COPORATE': 'corporate',
-};
-
-// -------------------------------
-// Date & Number Conversion (unchanged, just typed)
-const convertToSchemaData = (row, columnMap) => {
-  const doc = { clientId: null };
-
-  Object.keys(row).forEach((excelKey) => {
-    const schemaKey = columnMap[excelKey];
-    if (!schemaKey) return;
-
-    let value = row[excelKey];
-
-    // --- Date fields ---
-    if (
-      schemaKey.includes('Date') ||
-      ['dateOfBooking', 'dateOfTravel', 'refundDate'].includes(schemaKey)
-    ) {
-      if (typeof value === 'number' && value > 1 && value < 100000) {
-        // Excel serial date
-        try {
-          const date = new Date((value - 25569) * 86400 * 1000);
-          value = isNaN(date.getTime()) ? null : date;
-        } catch {
-          value = null;
-        }
-      } else if (typeof value === 'string' && value.trim()) {
-        try {
-          const [y, m, d] = value.split('-').map(Number);
-          if (y && m && d) {
-            const date = new Date(y, m - 1, d);
-            value = isNaN(date.getTime()) ? null : date;
-          } else {
-            const date = new Date(value);
-            value = isNaN(date.getTime()) ? null : date;
-          }
-        } catch {
-          value = null;
-        }
-      } else {
-        value = null;
-      }
-    }
-    // --- Statement Period ---
-    else if (schemaKey === 'statementPeriod') {
-      if (typeof value === 'number' && value > 1 && value < 100000) {
-        try {
-          const date = new Date((value - 25569) * 86400 * 1000);
-          if (!isNaN(date.getTime())) {
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const month = months[date.getMonth()];
-            const year = (date.getFullYear() % 100).toString().padStart(2, '0');
-            value = `${month}-${year}`;
-          }
-        } catch {
-          value = value.toString();
-        }
-      } else if (typeof value === 'string') {
-        value = value.trim();
-      } else {
-        value = value ? value.toString() : '';
-      }
-    }
-    // --- Numeric fields ---
-    else if (
-      [
-        'sNo',
-        'noOfPax',
-        'ticketAmount',
-        'charges',
-        'gst18',
-        'totalAmount',
-        'refund',
-        'cgst',
-        'sgst',
-        'igst',
-        'utgst',
-      ].includes(schemaKey)
-    ) {
-      value = value !== null && value !== undefined && value !== '' ? Number(value) : 0;
-      if (isNaN(value)) value = 0;
-    }
-
-    doc[schemaKey] = value;
-  });
-
-  return doc;
-};
-
-// -------------------------------
-// Helper: Batch Insert/Upsert
-async function upsertBookingsInBatches(
-  data,
-  clientId,
-  adminId,
-  session
-) {
-  let inserted = 0;
-  let updated = 0;
-  let skipped = 0;
-
-  const batchSize = 500; // Safe for SQL Server
-  for (let i = 0; i < data.length; i += batchSize) {
-    const batch = data.slice(i, i + batchSize);
-
-    const ops = batch.map((doc) => ({
-      where: { clientId_pnrTicketNo: { clientId, pnrTicketNo: doc.pnrTicket?.toString().trim() } },
-      update: { ...doc, clientId },
-      create: { ...doc, clientId },
-    }));
-
-    try {
-      const result = await prisma.booking.createMany({
-        data: ops.map((op) => op.create),
-        skipDuplicates: true,
-      });
-      inserted += result.count;
-
-      // Now update existing ones
-      for (const op of ops) {
-        await prisma.booking.updateMany({
-          where: op.where,
-          data: op.update,
-        });
-      }
-      updated += batch.length - result.count;
-    } catch (err) {
-      console.error('Batch upsert error:', err);
-      skipped += batch.length;
-    }
-  }
-
-  return { inserted, updated, skipped };
-}
-
-// Same for Refunds
-async function upsertRefundsInBatches(
-  data,
-  clientId,
-  adminId,
-  session
-) {
-  let inserted = 0;
-  let updated = 0;
-  let skipped = 0;
-
-  const batchSize = 500;
-  for (let i = 0; i < data.length; i += batchSize) {
-    const batch = data.slice(i, i + batchSize);
-
-    const ops = batch.map((doc) => ({
-      where: { clientId_pnrNo: { clientId, pnrNo: doc.pnrNo?.toString().trim() } },
-      update: { ...doc, clientId },
-      create: { ...doc, clientId },
-    }));
-
-    try {
-      const result = await prisma.refund.createMany({
-        data: ops.map((op) => op.create),
-        skipDuplicates: true,
-      });
-      inserted += result.count;
-
-      for (const op of ops) {
-        await prisma.refund.updateMany({
-          where: op.where,
-          data: op.update,
-        });
-      }
-      updated += batch.length - result.count;
-    } catch (err) {
-      skipped += batch.length;
-    }
-  }
-
-  return { inserted, updated, skipped };
-}
-
-// -------------------------------
-// GET: Check if data exists for client
-export async function GET(request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.role || session.user.role !== 'admin') {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const url = new URL(request.url);
-  const clientId = url.searchParams.get('clientId');
-  if (!clientId || isNaN(Number(clientId))) {
-    return NextResponse.json({ success: false, error: 'Invalid clientId' }, { status: 400 });
-  }
-
-  const count = await prisma.booking.count({ where: { clientId: Number(clientId) } });
-  return NextResponse.json({ success: true, exists: count > 0 });
-}
-
-// -------------------------------
-// POST: Upload Excel JSON
 export async function POST(request) {
+  // --- 1. Auth Check ---
   const session = await getServerSession(authOptions);
-  if (!session?.user?.role || session.user.role !== 'admin') {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const adminId = Number(session.user.id);
-  const body = await request.json();
-  const { jsonData, clientId: rawClientId, overwrite = false } = body;
+  const formData = await request.formData();
+  const file = formData.get('file');
+  const clientId = parseInt(formData.get('companyId'));
 
-  const clientId = Number(rawClientId);
-  if (!jsonData || !clientId || isNaN(clientId)) {
-    return NextResponse.json({ success: false, error: 'Missing jsonData or clientId' }, { status: 400 });
+  if (!file || !clientId) {
+    return NextResponse.json({ error: 'Missing file or company' }, { status: 400 });
   }
 
-  const client = await prisma.client.findUnique({ where: { clientId } });
-  if (!client) {
-    return NextResponse.json({ success: false, error: 'Client not found' }, { status: 400 });
+  if (file.size > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
   }
-
-  const { bookings: rawBookings = [], refunds: rawRefunds = [] } = jsonData;
-
-  const filteredBookings = rawBookings.filter(
-    (r) =>
-      r['PNR/Ticket #']?.toString().trim() && r['Booking ID ']?.toString().trim()
-  );
-  const filteredRefunds = rawRefunds.filter((r) => r['PNR_NO']?.toString().trim());
-
-  let bookingInserted = 0,
-    bookingUpdated = 0,
-    bookingSkipped = 0;
-  let refundInserted = 0,
-    refundUpdated = 0,
-    refundSkipped = 0;
-
-  const logEntry = await prisma.uploadLog.create({
-    data: {
-      adminId,
-      uploadType: 'EXCEL',
-      fileName: `client_${clientId}_upload_${new Date().toISOString().split('T')[0]}.json`,
-      rowsInserted: 0,
-      notes: `Processing ${filteredBookings.length} bookings, ${filteredRefunds.length} refunds. Overwrite: ${overwrite}`,
-    },
-  });
 
   try {
-    await prisma.$transaction(async (tx) => {
-      if (overwrite) {
-        await tx.booking.deleteMany({ where: { clientId } });
-        await tx.refund.deleteMany({ where: { clientId } });
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const workbook = read(buffer, { type: 'buffer', cellDates: true });
+
+    let bookings = [], refunds = [];
+    let preview = { bookings: [], refunds: [] };
+
+    // === BOOKINGS SHEET ===
+    const bookingSheet = workbook.SheetNames.find(s => s.toLowerCase().includes('booking'));
+    if (bookingSheet) {
+      const ws = workbook.Sheets[bookingSheet];
+      const rows = utils.sheet_to_json(ws, { header: 1 });
+      if (rows.length > 0) {
+        const headers = rows[0].map(h => h?.toString().trim());
+        const pnrIdx = headers.indexOf('PNR/Ticket #');
+        if (pnrIdx === -1) throw new Error('Bookings: Missing PNR/Ticket #');
+
+        bookings = rows.slice(1)
+          .filter(r => r[pnrIdx] && r[pnrIdx].toString().trim())
+          .map(r => {
+            const obj = {};
+            headers.forEach((h, i) => {
+              let val = r[i];
+              obj[h] = val;
+            });
+            return obj;
+          });
+        preview.bookings = bookings.slice(0, 10);
       }
+    }
 
-      const mappedBookings = filteredBookings.map((row) =>
-        convertToSchemaData(row, bookingsColumnMap)
+    // === REFUNDS SHEET ===
+    const refundSheet = workbook.SheetNames.find(s => s.toLowerCase().includes('refund'));
+    if (refundSheet) {
+      const ws = workbook.Sheets[refundSheet];
+      const rows = utils.sheet_to_json(ws, { header: 1 });
+      if (rows.length > 0) {
+        const headers = rows[0].map(h => h?.toString().trim());
+        const pnrIdx = headers.indexOf('PNR_NO');
+        if (pnrIdx === -1) throw new Error('Refunds: Missing PNR_NO');
+
+        refunds = rows.slice(1)
+          .filter(r => r[pnrIdx] && r[pnrIdx].toString().trim())
+          .map(r => {
+            const obj = {};
+            headers.forEach((h, i) => {
+              let val = r[i];
+              obj[h] = val;
+            });
+            return obj;
+          });
+        preview.refunds = refunds.slice(0, 10);
+      }
+    }
+
+    // === 1. CROSS-COMPANY PNR CONFLICT CHECK ===
+    const conflictingPnrs = new Set();
+
+    for (const row of bookings) {
+      const pnr = row['PNR/Ticket #']?.toString().trim();
+      if (!pnr) continue;
+      const exists = await prisma.booking.findFirst({
+        where: { pnrTicketNo: pnr, clientId: { not: clientId } },
+        select: { pnrTicketNo: true }
+      });
+      if (exists) conflictingPnrs.add(pnr);
+    }
+
+    for (const row of refunds) {
+      const pnr = row['PNR_NO']?.toString().trim();
+      if (!pnr) continue;
+      const exists = await prisma.refund.findFirst({
+        where: { pnrNo: pnr, clientId: { not: clientId } },
+        select: { pnrNo: true }
+      });
+      if (exists) conflictingPnrs.add(pnr);
+    }
+
+    if (conflictingPnrs.size > 0) {
+      return NextResponse.json(
+        { error: 'PNR(s) already exist for different company' },
+        { status: 400 }
       );
-      const mappedRefunds = filteredRefunds.map((row) =>
-        convertToSchemaData(row, refundsColumnMap)
-      );
+    }
 
-      const bookingResult = await upsertBookingsInBatches(mappedBookings, clientId, adminId, tx);
-      const refundResult = await upsertRefundsInBatches(mappedRefunds, clientId, adminId, tx);
+    // === 2. PROCESS BOOKINGS: Skip if exists, Insert if new ===
+    const result = {
+      bookings: { inserted: 0, skipped: 0 },
+      refunds: { inserted: 0, skipped: 0 }
+    };
 
-      Object.assign(
-        { bookingInserted, bookingUpdated, bookingSkipped },
-        bookingResult
-      );
-      Object.assign(
-        { refundInserted, refundUpdated, refundSkipped },
-        refundResult
-      );
-    });
+    for (const row of bookings) {
+      const pnr = row['PNR/Ticket #']?.toString().trim();
+      const exists = await prisma.booking.findFirst({
+        where: { clientId, pnrTicketNo: pnr }
+      });
 
-    // Update log
-    await prisma.uploadLog.update({
-      where: { logId: logEntry.logId },
-      data: {
-        rowsInserted: bookingInserted + refundInserted,
-        notes: `${logEntry.notes}\nSuccess: ${bookingInserted}B/${refundInserted}R inserted, ${bookingUpdated}B/${refundUpdated}R updated`,
-      },
-    });
+      if (exists) {
+        result.bookings.skipped++;
+      } else {
+        await prisma.booking.create({
+          data: {
+            clientId,
+            serialNo: row['S. No.'] ? parseInt(row['S. No.']) : null,
+            dateOfBooking: row['Date of Booking'] ? new Date(row['Date of Booking']) : null,
+            pnrTicketNo: pnr,
+            dateOfTravel: row['Date of Travel'] ? new Date(row['Date of Travel']) : null,
+            passengerName: row['Passenger Name'] || null,
+            sector: row['Sector'] || null,
+            originStn: row['Origin Stn.'] || null,
+            destinationStn: row['Destination Stn.'] || null,
+            class: row['Class'] || null,
+            quota: row['Quota'] || null,
+            noOfPax: row['No. of Pax'] ? parseInt(row['No. of Pax']) : null,
+            ticketAmount: row['Ticket Amount'] ? parseFloat(row['Ticket Amount']) : null,
+            sCharges: row['S. Charges'] ? parseFloat(row['S. Charges']) : null,
+            gst18: row['GST (18%)'] ? parseFloat(row['GST (18%)']) : null,
+            totalAmount: row['Total Amount'] ? parseFloat(row['Total Amount']) : null,
+            bookingId: row['Booking ID']?.toString().trim() || null,
+            vendeeCorporate: row['Vendee/Corporate'] || null,
+            subCorporate: row['Sub-Corporate'] || null,
+            subEntity: row['Sub-Entity'] || null,
+            nttBillNo: row['NTT Bill No.']?.toString().trim() || null,
+            invoiceNo: row['Invoice No.']?.toString().trim() || null,
+            statementPeriod: row['Statement Period'] ? new Date(row['Statement Period']) : null,
+            gstNo: row['GST No.']?.toString().trim() || null,
+            gstState: row['GST State'] || null,
+            cgst9: row['CGST %9'] ? parseFloat(row['CGST %9']) : null,
+            sgst9: row['SGST % 9'] ? parseFloat(row['SGST % 9']) : null,
+            igst18: row['IGST % 18'] ? parseFloat(row['IGST % 18']) : null,
+          }
+        });
+        result.bookings.inserted++;
+      }
+    }
 
-    return NextResponse.json({
-      success: true,
-      bookings: { inserted: bookingInserted, updated: bookingUpdated, skipped: bookingSkipped },
-      refunds: { inserted: refundInserted, updated: refundUpdated, skipped: refundSkipped },
-      totalProcessed: filteredBookings.length + filteredRefunds.length,
-    });
-  } catch (error) {
-    await prisma.uploadLog.update({
-      where: { logId: logEntry.logId },
-      data: { notes: `${logEntry.notes}\nERROR: ${error.message}` },
-    });
+    // === 3. PROCESS REFUNDS: Skip if exists, Insert if new ===
+    for (const row of refunds) {
+      const pnr = row['PNR_NO']?.toString().trim();
+      const exists = await prisma.refund.findFirst({
+        where: { clientId, pnrNo: pnr }
+      });
 
+      if (exists) {
+        result.refunds.skipped++;
+      } else {
+        await prisma.refund.create({
+          data: {
+            clientId,
+            serialNo: row['S.No.'] ? parseInt(row['S.No.']) : null,
+            refundDate: row['REFUND DATE'] ? new Date(row['REFUND DATE']) : null,
+            pnrNo: pnr,
+            refundAmount: row['REFUND'] ? parseFloat(row['REFUND']) : null,
+            vendeeCorporate: row['Vendee/Corporate']?.toString().trim() || null,
+            subCorporate: row['Sub-Corporate']?.toString().trim() || null,
+            subEntity: row['Sub-Entity']?.toString().trim() || null,
+          }
+        });
+        result.refunds.inserted++;
+      }
+    }
+
+    return NextResponse.json({ success: true, ...result, preview });
+  } catch (err) {
+    console.error('Upload error:', err);
     return NextResponse.json(
-      { success: false, error: error.message || 'Upload failed' },
+      { error: err.message.includes('different company') ? 'PNR(s) already exist for different company' : err.message },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// === CHECK IF DATA EXISTS ===
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const clientId = parseInt(searchParams.get('companyId'));
+  if (!clientId) return NextResponse.json({ exists: false });
+
+  try {
+    const count = await prisma.booking.count({ where: { clientId } }) +
+                  await prisma.refund.count({ where: { clientId } });
+    return NextResponse.json({ exists: count > 0 });
+  } catch {
+    return NextResponse.json({ exists: false });
   }
 }

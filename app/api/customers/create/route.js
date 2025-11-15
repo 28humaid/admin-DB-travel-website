@@ -25,7 +25,7 @@ export async function POST(request) {
       email2,
       email3,
       companyName,
-      subCorporate = null,
+      subCorporate,
       subEntity,
       mobileNo = null,
       gstNo = null,

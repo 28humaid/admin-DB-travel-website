@@ -6,6 +6,7 @@ import CreateUser from '@/components/adminDashboard/createUser';
 import UsersDetails from '@/components/adminDashboard/usersDetails';
 import ExcelUpload from '@/components/adminDashboard/excelUpload';
 import Logout from '@/components/adminDashboard/logout';
+import ViewExcel from '@/components/adminDashboard/viewExcel';
 
 const page = () => {
   const { slug } = useParams();
@@ -15,7 +16,8 @@ const page = () => {
     createUser: <CreateUser/>,
     usersDetails: <UsersDetails/>,
     excelUpload:<ExcelUpload/>,
-    logout: <Logout/>
+    logout: <Logout/>,
+    viewExcel: <ViewExcel/>
   };
 
   if (!slug){

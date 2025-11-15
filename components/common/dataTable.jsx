@@ -5,10 +5,10 @@ const DataTable = ({ data, onDelete, onEdit, hideActions = false }) => {
   if (!data || data.length === 0) return <p>No data available</p>;
 
   // Get headers, excluding password and _id
-  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== '_id' && key !== '__v' && key !== 'id') : [];
+  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== 'clientId' && key !== '__v' && key !== 'id') : [];
 
   return (
-    <div className="overflow-x-auto overflow-y-auto max-h-[460px] max-w-[300px] sm:max-w-[500px] md:max-w-[800px] lg:max-w-[900px]">
+    <div className="overflow-x-auto overflow-y-auto max-h-[460px] max-w-[300px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px]">
       <table className="min-w-full bg-white border border-gray-300 table-fixed">
         <thead className="sticky top-0 bg-blue-300">
           <tr>
@@ -49,7 +49,7 @@ const DataTable = ({ data, onDelete, onEdit, hideActions = false }) => {
                       <Edit2 size={20} />
                     </button>
                     <button
-                      onClick={() => onDelete(item.id)}
+                      onClick={() => onDelete(item.clientId)}
                       className="text-red-500 hover:text-red-700 flex items-center"
                       title="Delete"
                     >

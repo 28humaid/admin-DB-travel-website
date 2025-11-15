@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request) {
+export async function GET() {
   // --- 1. Admin Auth Check ---
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'admin') {

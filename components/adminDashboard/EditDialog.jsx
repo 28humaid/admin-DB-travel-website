@@ -1,125 +1,150 @@
+// EditDialog.jsx
 import React from 'react';
 import { Formik, Form, Field } from 'formik';
+import { editCustomerValidationSchema } from '@/utils/validationSchema';
+import InputField from '../common/inputField';
 
 const EditDialog = ({ open, onClose, customer, onSave }) => {
-  if (!open) return null;
+  if (!open || !customer) return null;
 
   const initialValues = {
-    emails: customer?.emails?.join(', ') || '',
-    companyName: customer?.companyName || '',
-    phoneNumber: customer?.phoneNumber || '',
-    subEntity: customer?.subEntity || '',
-    gstNumber: customer?.gstNumber || '',
-    address: customer?.address || '',
+    companyName: customer.companyName || '',
+    mobileNo: customer.mobileNo || '',
+    subCorporate:customer.subCorporate || '',
+    subEntity: customer.subEntity || '',
+    gstNo: customer.gstNo || '',
+    address: customer.address || '',
   };
 
   const handleSubmit = (values) => {
-    onSave({
-      id: customer.id,
-      ...values,
-      emails: values.emails.split(',').map(email => email.trim()).filter(email => email),
-    });
+    const payload = {
+      clientId: customer.clientId,
+      companyName: values.companyName.trim(),
+      mobileNo: values.mobileNo.trim() || null,
+      subEntity: values.subEntity.trim(),
+      subCorporate:values.subCorporate.trim() || null,
+      gstNo: values.gstNo.trim() || null,
+      address: values.address.trim() || null,
+    };
+
+    onSave(payload);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)'}}>
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Edit Customer</h2>
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-75">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 h-[600px] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Edit Customer</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-            aria-label="Close dialog"
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+            aria-label="Close"
           >
-            &times;
+            ×
           </button>
         </div>
-        <Formik initialValues={initialValues} onSubmit={handleSubmit}>
-          <Form className="space-y-4">
-            <div>
-              <label htmlFor="emails" className="block text-sm font-medium text-gray-700">
-                Emails (comma-separated)
-              </label>
-              <Field
-                id="emails"
-                name="emails"
-                type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
-                placeholder="email1@example.com, email2@example.com"
-              />
-            </div>
-            <div>
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-                Company Name
-              </label>
-              <Field
-                id="companyName"
-                name="companyName"
-                type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <Field
-                id="phoneNumber"
-                name="phoneNumber"
-                type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="subEntity" className="block text-sm font-medium text-gray-700">
-                Sub Entity
-              </label>
-              <Field
-                id="subEntity"
-                name="subEntity"
-                type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="gstNumber" className="block text-sm font-medium text-gray-700">
-                GST Number
-              </label>
-              <Field
-                id="gstNumber"
-                name="gstNumber"
-                type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                Address
-              </label>
-              <Field
-                id="address"
-                name="address"
-                type="text"
-                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              >
-                Save
-              </button>
-            </div>
-          </Form>
+
+        {/* Read-only Emails Display */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-md border border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Emails (cannot be edited)</h3>
+          <ul className="text-sm text-gray-600 space-y-1">
+            {customer.email1 && <li>• {customer.email1}</li>}
+            {customer.email2 && <li>• {customer.email2}</li>}
+            {customer.email3 && <li>• {customer.email3}</li>}
+            {!customer.email1 && !customer.email2 && !customer.email3 && (
+              <li className="italic">No emails</li>
+            )}
+          </ul>
+        </div>
+
+        <Formik initialValues={initialValues} validationSchema={editCustomerValidationSchema} onSubmit={handleSubmit}>
+          {({ isSubmitting, ...formik }) => (
+            <Form className="space-y-5">
+
+              <div>
+                <InputField
+                  type="text"
+                  name="companyName"
+                  label="Company Name"
+                  placeholder="Enter company name"
+                  formik={formik}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <InputField
+                  type="tel"
+                  name="mobileNo"
+                  label="Phone no."
+                  placeholder="Enter phone no."
+                  formik={formik}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <InputField
+                  type="text"
+                  name="subCorporate"
+                  label="Sub-Corporate"
+                  placeholder="Enter sub-corporate name"
+                  formik={formik}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <InputField
+                  type="text"
+                  name="subEntity"
+                  label="Sub entity"
+                  placeholder="Enter sub entity"
+                  formik={formik}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <InputField
+                  type="text"
+                  name="gstNo"
+                  label="GST no."
+                  placeholder="Enter GST no."
+                  formik={formik}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <InputField
+                  type="text"
+                  name="address"
+                  label="Address"
+                  placeholder="Enter address line 1"
+                  formik={formik}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </Form>
+          )}
         </Formik>
       </div>
     </div>

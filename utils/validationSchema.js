@@ -18,7 +18,14 @@ export const createCustomerValidationSchema = Yup.object({
         .email('Please enter a valid email')
         .required('Please enter email'),
     companyName:Yup.string().required('Please enter the company name'),
-    phoneNumber:Yup.string().matches(/^[0-9]+$/, 'Phone number must contain only digits').min(10,'Phone no. cannot be less than 10 digits').max(10,'Phone no. cannot be greater than 10 digits'),
-    gstNumber:Yup.string().required('Please enter GST no.').min(15,'GST no. cannot be less than 15 digits').max(15,'GST no. cannot be greater than 15 digits')
+    mobileNo:Yup.string().matches(/^[0-9]+$/, 'Phone number must contain only digits').min(10,'Phone no. cannot be less than 10 digits').max(10,'Phone no. cannot be greater than 10 digits'),
+    gstNo:Yup.string().required('Please enter GST no.').min(15,'GST no. cannot be less than 15 digits').max(15,'GST no. cannot be greater than 15 digits')
+
+});
+
+export const editCustomerValidationSchema = Yup.object({
+    companyName:Yup.string().required('Please enter the company name'),
+    mobileNo:Yup.string().matches(/^[0-9]+$/, 'Phone number must contain only digits').min(10,'Phone no. cannot be less than 10 digits').max(10,'Phone no. cannot be greater than 10 digits'),
+    gstNo:Yup.string().required('Please enter GST no.').min(15,'GST no. cannot be less than 15 digits').max(15,'GST no. cannot be greater than 15 digits')
 
 });

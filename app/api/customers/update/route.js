@@ -10,48 +10,38 @@ export async function PUT(request) {
   }
 
   try {
-    const { id, ...updateData } = await request.json();
+    const body = await request.json();
+    const { clientId, companyName, mobileNo, subCorporate, subEntity, gstNo, address } = body;
 
-    if (!id) {
-      return NextResponse.json(
-        { message: "Customer ID is required" },
-        { status: 400 }
-      );
+    if (!clientId) {
+      return NextResponse.json({ message: "Customer ID is required" }, { status: 400 });
     }
 
-    const allowed = [
-      "emails",
-      "companyName",
-      "phoneNumber",
-      "subEntity",
-      "gstNumber",
-      "address",
-    ];
+    const updateData = {};
+    if (companyName !== undefined) updateData.companyName = companyName;
+    if (mobileNo !== undefined) updateData.mobileNo = mobileNo || null;
+    if (subCorporate !== undefined) updateData.subCorporate = subCorporate;
+    if (subEntity !== undefined) updateData.subEntity = subEntity;
+    if (gstNo !== undefined) updateData.gstNo = gstNo || null;
+    if (address !== undefined) updateData.address = address || null;
 
-    const sanitized = {};
-    for (const key of allowed) {
-      if (updateData[key] !== undefined) {
-        sanitized[key] = updateData[key];
-      }
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ message: "No valid fields to update" }, { status: 400 });
     }
 
-    if (Object.keys(sanitized).length === 0) {
-      return NextResponse.json(
-        { message: "No valid fields to update" },
-        { status: 400 }
-      );
-    }
-
-    const customer = await prisma.customer.update({
-      where: { id },
-      data: sanitized,
+    const customer = await prisma.client.update({
+      where: { clientId: parseInt(clientId) },
+      data: updateData,
       select: {
-        id: true,
-        emails: true,
+        clientId: true,
+        email1: true,
+        email2: true,
+        email3: true,
         companyName: true,
-        phoneNumber: true,
+        mobileNo: true,
+        subCorporate: true,
         subEntity: true,
-        gstNumber: true,
+        gstNo: true,
         address: true,
         createdAt: true,
         updatedAt: true,
@@ -60,25 +50,16 @@ export async function PUT(request) {
 
     return NextResponse.json({ customer }, { status: 200 });
   } catch (error) {
-    console.error("Error updating customer:", error);
-
+    console.error("Update error:", error);
     if (error.code === "P2002") {
       return NextResponse.json(
         { message: "Unique constraint failed", field: error.meta?.target },
         { status: 400 }
       );
     }
-
     if (error.code === "P2025") {
-      return NextResponse.json(
-        { message: "Customer not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Customer not found" }, { status: 404 });
     }
-
-    return NextResponse.json(
-      { message: "Failed to update customer" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to update customer" }, { status: 500 });
   }
 }

@@ -7,8 +7,11 @@ import Button from "../common/button";
 import InputField from "../common/inputField";
 import FeedbackDialog from "../common/feedbackDialog";
 import { getAuthToken } from "@/utils/getAuthToken";
+import { useQueryClient } from '@tanstack/react-query';
+
 
 const CreateUser = () => {
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [dialogState, setDialogState] = useState({
     isOpen: false,
@@ -39,9 +42,9 @@ const CreateUser = () => {
             email2: "",
             email3: "",
             companyName: "",
-            phoneNumber: "",
+            mobileNo: "",
             subEntity: "",
-            gstNumber: "",
+            gstNo: "",
             addressLine1: "",
             addressLine2: "",
           }}
@@ -56,7 +59,8 @@ const CreateUser = () => {
                 body: values,
                 token: getAuthToken(),
               });
-
+              queryClient.invalidateQueries(['customers']);
+              
               setDialogState({
                 isOpen: true,
                 message: result.message || "Customer created successfully",
@@ -103,7 +107,7 @@ const CreateUser = () => {
               />
               <InputField
                 type="tel"
-                name="phoneNumber"
+                name="mobileNo"
                 label="Phone no."
                 placeholder="Enter phone no."
                 formik={formik}
@@ -119,6 +123,14 @@ const CreateUser = () => {
               />
               <InputField
                 type="text"
+                name="subCorporate"
+                label="Sub-Corporate"
+                placeholder="Enter sub-corporate name"
+                formik={formik}
+                disabled={isSubmitting}
+              />
+              <InputField
+                type="text"
                 name="subEntity"
                 label="Sub entity"
                 placeholder="Enter sub entity"
@@ -127,7 +139,7 @@ const CreateUser = () => {
               />
               <InputField
                 type="text"
-                name="gstNumber"
+                name="gstNo"
                 label="GST no."
                 placeholder="Enter GST no."
                 formik={formik}

@@ -14,6 +14,7 @@ const layout = async ({ children }) => {
     { label: 'Create user', route: 'createUser',icon:'Pencil' },
     { label: 'Users details', route: 'usersDetails',icon:'Notebook' },
     { label: 'Upload Excel', route: 'excelUpload',icon:'MonitorUp' },
+    { label: 'View Excel', route: 'viewExcel', icon:'FileSpreadsheet' },
     { label: 'Logout', route: 'logout', icon:'LogOut' },
   ];
 

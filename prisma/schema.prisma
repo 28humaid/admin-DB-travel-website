@@ -53,11 +53,11 @@ model Booking {
   bID               Int       @id @default(autoincrement()) @map("booking_internal_id")
   clientId          Int       @map("client_id")
   serialNo          Int?      @map("serial_no")
-  dateOfBooking     DateTime? @map("date_of_booking") @db.DateTime2
+  dateOfBooking     DateTime? @map("date_of_booking") @db.Date
   pnrTicketNo       String    @map("pnr_ticket_no") @db.NVarChar(50)
-  dateOfTravel      DateTime? @map("date_of_travel") @db.DateTime2
+  dateOfTravel      DateTime? @map("date_of_travel") @db.Date
   passengerName     String?   @db.NVarChar(100)
-  sector            String    @db.NVarChar(100)
+  sector            String?   @db.NVarChar(100)
   originStn         String?   @map("origin_stn") @db.NVarChar(50)
   destinationStn    String?   @map("destination_stn") @db.NVarChar(50)
   class             String?   @db.NVarChar(20)
@@ -73,7 +73,7 @@ model Booking {
   subEntity         String?   @map("sub_entity") @db.NVarChar(150)
   nttBillNo         String?   @map("ntt_bill_no") @db.NVarChar(50)
   invoiceNo         String?   @map("invoice_no") @db.NVarChar(50)
-  statementPeriod   String?   @map("statement_period") @db.NVarChar(50)
+  statementPeriod   DateTime? @map("statement_period") @db.Date
   gstNo             String?   @map("gst_no") @db.NVarChar(50)
   gstState          String?   @map("gst_state") @db.NVarChar(50)
   cgst9             Float?    @map("cgst_9") @db.Money
@@ -93,7 +93,7 @@ model Refund {
   rID             Int       @id @default(autoincrement()) @map("refund_internal_id")
   clientId        Int       @map("client_id")
   serialNo        Int?      @map("serial_no")
-  refundDate      DateTime? @map("refund_date") @db.DateTime2
+  refundDate      DateTime? @map("refund_date") @db.Date
   pnrNo           String    @map("pnr_no") @db.NVarChar(50)
   refundAmount    Float?    @map("refund_amount") @db.Money
   vendeeCorporate String?   @map("vendee_corporate") @db.NVarChar(150)

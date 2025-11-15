@@ -51,7 +51,7 @@ export const authOptions = {
 
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hrs
+    maxAge: 6 * 60 * 60, // 24 hrs
   },
 
   callbacks: {
