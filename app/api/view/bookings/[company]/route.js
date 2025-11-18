@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
     // ---- 3. Query Prisma ----
     const bookings = await prisma.booking.findMany({
       where: { clientId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { serialNo: 'asc' },
     });
 
     // if (!bookings.length) {

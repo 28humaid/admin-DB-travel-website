@@ -9,46 +9,68 @@ const CustomDialog = ({
   title: customTitle,
   confirmButtonText: customConfirmText,
   cancelButtonText: customCancelText,
-  confirmButtonClass: customConfirmClass = 'bg-red-500 hover:bg-red-600' // Default to red for deletes
+  confirmButtonClass: customConfirmClass = 'bg-red-500 hover:bg-red-600' // default red
 }) => {
   if (!open) return null;
 
-  // Backward-compatible title logic
   const getTitle = () => {
     if (customTitle) return customTitle;
-    return type === 'confirmDelete' ? 'Confirm Deletion' : 'Error';
+
+    // Add support for the new type
+    if (type === 'confirmDeleteExcel') return 'Delete Uploaded Excel?';
+    if (type === 'confirmDelete') return 'Confirm Deletion';
+    if (type === 'confirmOverwrite') return 'Confirm Overwrite';
+    return 'Error';
   };
 
-  // Backward-compatible button texts and visibility
-  const isConfirmType = type === 'confirmDelete' || type === 'confirmOverwrite';
+  // Updated: recognize the new confirm type
+  const isConfirmType = 
+    type === 'confirmDelete' || 
+    type === 'confirmOverwrite' || 
+    type === 'confirmDeleteExcel';   // ← ADD THIS
+
   const showConfirmButtons = isConfirmType && onConfirm;
 
-  const cancelText = customCancelText || (isConfirmType ? 'Cancel' : null);
-  const confirmText = customConfirmText || (type === 'confirmDelete' ? 'Delete' : 'Confirm');
+  const cancelText = customCancelText || 'Cancel';
+  const confirmText = customConfirmText || (
+    type === 'confirmDelete'      ? 'Delete User' :
+    type === 'confirmDeleteExcel' ? 'Delete Excel Only' :
+    type === 'confirmOverwrite'   ? 'Overwrite' : 'Confirm'
+  );
+
+  // Optional: make Excel delete button orange instead of red (safer feel)
+  const getConfirmClass = () => {
+    if (customConfirmClass) return customConfirmClass;
+
+    if (type === 'confirmDeleteExcel') {
+      return 'bg-orange-500 hover:bg-orange-600';     // Orange = less scary than red
+    }
+    if (type === 'confirmOverwrite') {
+      return 'bg-blue-500 hover:bg-blue-600';
+    }
+    return 'bg-red-500 hover:bg-red-600'; // full delete = red
+  };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}>
-      <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-        <h2 className="text-xl font-bold mb-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+      <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full mx-4">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">
           {getTitle()}
         </h2>
-        <p className="mb-4">{message}</p>
-        <div className="flex justify-end gap-2">
+        <p className="mb-6 text-gray-700 leading-relaxed">{message}</p>
+
+        <div className="flex justify-end gap-3">
           {showConfirmButtons ? (
             <>
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+                className="px-5 py-2.5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
               >
                 {cancelText}
               </button>
               <button
                 onClick={onConfirm}
-                className={`px-4 py-2 text-white rounded ${
-                  type === 'confirmOverwrite' 
-                    ? 'bg-blue-500 hover:bg-blue-600'  // Blue for overwrite (non-destructive)
-                    : customConfirmClass || 'bg-red-500 hover:bg-red-600'  // Red default for delete
-                }`}
+                className={`px-5 py-2.5 text-white font-medium rounded-lg transition ${getConfirmClass()}`}
               >
                 {confirmText}
               </button>
@@ -56,7 +78,7 @@ const CustomDialog = ({
           ) : (
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               OK
             </button>
@@ -66,5 +88,4 @@ const CustomDialog = ({
     </div>
   );
 };
-
 export default CustomDialog;

@@ -187,7 +187,14 @@ export async function POST(request) {
         result.refunds.inserted++;
       }
     }
-
+    // === UPDATE hasExcel = true IF ANY DATA WAS INSERTED ===
+    const totalInserted = result.bookings.inserted + result.refunds.inserted;
+    if (totalInserted > 0) {
+      await prisma.client.update({
+        where: { clientId },
+        data: { hasExcel: true }
+      });
+    }
     return NextResponse.json({ success: true, ...result, preview });
   } catch (err) {
     console.error('Upload error:', err);

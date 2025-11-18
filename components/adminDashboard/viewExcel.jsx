@@ -132,7 +132,7 @@ const ViewExcel = () => {
             )}
           </Formik>
           {/* Loading Overlay */}
-          {(loading || submitting) && (<Loader message={loading ? "Loading companies..." : "Fetching data..."} />
+          {(loading || submitting) && (<Loader message={loading ? "Loading..." : "Fetching data..."} />
           )}
         </div>
       </div>

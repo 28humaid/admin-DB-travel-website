@@ -41,6 +41,7 @@ export async function GET() {
         address: true,
         createdAt: true,
         updatedAt: true,
+        hasExcel:true,
         // passwordHash is NOT selected → secure by default
       },
       orderBy: { createdAt: 'desc' },

@@ -6,7 +6,7 @@ import { CalendarIcon } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format, isValid, parse } from 'date-fns';
-import { TableHead } from '../ui/table';
+import { TableHead } from '@/components/ui/table';
 
 const TableHeaderWithFilter = ({ header, isDateColumn }) => {
   return (

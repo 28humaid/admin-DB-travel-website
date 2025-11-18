@@ -258,6 +258,7 @@ const ExcelUpload = () => {
                 data={clientPreview[activeTab] || []}
                 onEdit={() => {}}
                 onDelete={() => {}}
+                onDeleteExcel={() => {}}
                 hideActions={true}
               />
             </div>
@@ -272,6 +273,7 @@ const ExcelUpload = () => {
                 data={previewData[activeTab] || []}
                 onEdit={() => {}}
                 onDelete={() => {}}
+                onDeleteExcel={() => {}}
                 hideActions={true}
               />
             </div>

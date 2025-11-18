@@ -22,6 +22,8 @@ const UsersDetails = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  const [deleteExcelId, setDeleteExcelId] = useState(null);
+  const [openExcelConfirm, setOpenExcelConfirm] = useState(false);
 
   // Min loader duration ref
   const minLoaderTimeoutRef = useRef(null);
@@ -38,7 +40,7 @@ const UsersDetails = () => {
         url: '/api/customers/read',
         token: getAuthToken(),
       });
-      return customers.map(cust => ({ ...cust, id: cust.clientId }));
+      return customers.map(cust => ({ ...cust, id: cust.clientId, hasExcel:cust.hasExcel }));
     },
     enabled: !!session,
   });
@@ -64,7 +66,7 @@ const UsersDetails = () => {
   // ---------- MUTATIONS ----------
   const deleteMutation = useMutation({
     mutationFn: (id) => {
-      console.log('Delete mutation starting...', id); // Debug log
+      // console.log('Delete mutation starting...', id); // Debug log
       return apiRequest({
         url: '/api/customers/delete',
         method: 'DELETE',
@@ -122,11 +124,41 @@ const UsersDetails = () => {
     },
   });
 
+  const deleteExcelMutation = useMutation({
+    mutationFn: (id) =>
+      apiRequest({
+        url: '/api/customers/delete-excel',  // ← fixed the missing slash
+        method: 'DELETE',
+        body: { id },
+        token: getAuthToken(),
+      }),
+    onMutate: async (id) => {
+      // ← THIS LINE MAKES IT INSTANT (same trick you already use for update)
+      queryClient.setQueryData(['customers'], (old = []) =>
+        old.map(cust =>
+          cust.id === id ? { ...cust, hasExcel: false, excelPath: null } : cust
+        )
+      );
+    },
+    onSuccess: () => {
+      setOpenExcelConfirm(false);
+      queryClient.invalidateQueries(['customers']); // keep data in sync
+    },
+    onError: (err) => {
+      setDialogType('error');
+      setDialogMessage('Failed to delete excel: ' + err.message);
+      setOpenDialog(true);
+      // refetch on error so UI goes back if needed
+      queryClient.invalidateQueries(['customers']);
+    },
+  });
+
   // ---------- LOADER STATE (v5 Compatible) ----------
   // Use isPending (v5) with fallback to isLoading (v4)
   const isMutating =
     (deleteMutation.isPending ?? deleteMutation.isLoading) ||
-    (updateMutation.isPending ?? updateMutation.isLoading);
+    (updateMutation.isPending ?? updateMutation.isLoading) || 
+    ( deleteExcelMutation.isPending ?? deleteExcelMutation.isLoading);
 
   // Force min duration: Show loader until timeout clears *or* mutation ends
   const [forceLoader, setForceLoader] = useState(false);
@@ -143,7 +175,7 @@ const UsersDetails = () => {
 
   // ---------- HANDLERS ----------
   const handleDelete = (id) => {
-    console.log('Handle delete clicked:', id); // Debug log
+    // console.log('Handle delete clicked:', id); // Debug log
     setDialogType('confirmDelete');
     setDialogMessage('Are you sure you want to delete this user?');
     setDeleteId(id);
@@ -170,6 +202,16 @@ const UsersDetails = () => {
     setDialogType(null);
     setDialogMessage('');
     setDeleteId(null);
+  };
+
+  const handleDeleteExcel = (id) =>{
+    setDeleteExcelId(id);
+    setOpenExcelConfirm(true);
+  };
+
+  const confirmDeleteExcel = () => {
+    deleteExcelMutation.mutate(deleteExcelId);
+    setOpenExcelConfirm(false);
   };
 
   // ---------- EARLY RETURNS ----------
@@ -238,7 +280,7 @@ const UsersDetails = () => {
         </div>
 
         {/* Table */}
-        <DataTable data={paginatedCustomers} onDelete={handleDelete} onEdit={handleEdit} />
+        <DataTable data={paginatedCustomers} onDelete={handleDelete} onEdit={handleEdit} onDeleteExcel={handleDeleteExcel}/>
 
         {/* Dialogs */}
         {editCustomer && (
@@ -255,6 +297,13 @@ const UsersDetails = () => {
           type={dialogType}
           message={dialogMessage}
           onConfirm={confirmDelete}
+        />
+        <CustomDialog
+          open={openExcelConfirm}
+          onClose={() => setOpenExcelConfirm(false)}
+          type="confirmDeleteExcel"
+          message="Delete the uploaded Excel file?"
+          onConfirm={confirmDeleteExcel}
         />
       </div>
 

@@ -1,14 +1,14 @@
 import React from 'react';
 import { Trash2, Edit2 } from 'lucide-react';
 
-const DataTable = ({ data, onDelete, onEdit, hideActions = false }) => {
+const DataTable = ({ data, onDelete, onEdit, onDeleteExcel, hideActions = false }) => {
   if (!data || data.length === 0) return <p>No data available</p>;
 
   // Get headers, excluding password and _id
-  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== 'clientId' && key !== '__v' && key !== 'id') : [];
+  const headers = data[0] ? Object.keys(data[0]).filter(key => key !== 'password' && key !== 'clientId' && key !== '__v' && key !== 'id' && key !== 'hasExcel') : [];
 
   return (
-    <div className="overflow-x-auto overflow-y-auto max-h-[460px] max-w-[300px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px]">
+    <div className="overflow-x-auto overflow-y-auto max-h-[460px] max-w-[300px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] xl:max-w-[1080px]">
       <table className="min-w-full bg-white border border-gray-300 table-fixed">
         <thead className="sticky top-0 bg-blue-300">
           <tr>
@@ -23,7 +23,11 @@ const DataTable = ({ data, onDelete, onEdit, hideActions = false }) => {
           </tr>
         </thead>
         <tbody>
-          {data.map((item, index) => (
+          {data.map((item, index) => {
+            // Debug: Check actual value
+            // const hasExcelValue = item.hasExcel;
+            // console.log(`Row ${index} - hasExcel:`, hasExcelValue, typeof hasExcelValue, item);
+            return (
             <tr key={index} className="hover:bg-blue-300">
               {headers.map((header) => (
                 <td key={header} className="px-4 py-2 border-b whitespace-nowrap text-[13px]">
@@ -55,11 +59,19 @@ const DataTable = ({ data, onDelete, onEdit, hideActions = false }) => {
                     >
                       <Trash2 size={20} />
                     </button>
+                    {item.hasExcel && (
+                      <button
+                        onClick={() => onDeleteExcel(item.clientId)}
+                        className="text-[11px] border border-red-500 bg-red-500 p-1 rounded-lg font-bold text-white hover:border-white hover:bg-white hover:text-red-500"
+                      >
+                        Delete Excel
+                      </button>
+                    )}
                   </div>
                 </td>
               )}
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
     </div>

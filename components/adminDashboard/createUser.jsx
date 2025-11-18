@@ -8,6 +8,7 @@ import InputField from "../common/inputField";
 import FeedbackDialog from "../common/feedbackDialog";
 import { getAuthToken } from "@/utils/getAuthToken";
 import { useQueryClient } from '@tanstack/react-query';
+import Loader from "../common/loader";
 
 
 const CreateUser = () => {
@@ -24,7 +25,7 @@ const CreateUser = () => {
   };
 
   if (!session) {
-    return <div className="p-4">Please wait a moment OR log in to create a user.</div>;
+    return <Loader message="Please wait..."/>;
   }
 
   return (

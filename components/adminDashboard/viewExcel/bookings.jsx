@@ -1,5 +1,5 @@
 'use client';
-import BrLayout from './brLayout';
+// import BrLayout from './brLayout';
 import { useMemo, useState } from 'react';
 import {
   createColumnHelper,
@@ -47,20 +47,8 @@ const Bookings = ({ bookings, error }) => {
   const columnHelper = createColumnHelper();
   const columns = useMemo(
     () => [
-      columnHelper.accessor('bookingId', {
-        header: 'Booking ID',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('charges', {
-        header: 'Charges',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('class', {
-        header: 'Class',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('corporateName', {
-        header: 'Corporate Name',
+      columnHelper.accessor('serialNo', {
+        header: 'S. No.',
         filterFn: 'includesString',
       }),
       columnHelper.accessor('dateOfBooking', {
@@ -84,6 +72,10 @@ const Bookings = ({ bookings, error }) => {
           return true;
         },
       }),
+      columnHelper.accessor('pnrTicketNo', {
+        header: 'PNR/Ticket #',
+        filterFn: 'includesString',
+      }),
       columnHelper.accessor('dateOfTravel', {
         header: 'Date of Travel',
         cell: (info) => {
@@ -105,72 +97,96 @@ const Bookings = ({ bookings, error }) => {
           return true;
         },
       }),
-      columnHelper.accessor('destinationStn', {
-        header: 'Destination Station',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('entityName', {
-        header: 'Entity Name',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('gst18', {
-        header: 'GST (18%)',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('gstNo', {
-        header: 'GST Number',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('invoiceNo', {
-        header: 'Invoice Number',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('noOfPax', {
-        header: 'No. of Passengers',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('nttBillNo', {
-        header: 'NTT Bill Number',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('originStn', {
-        header: 'Origin Station',
-        filterFn: 'includesString',
-      }),
       columnHelper.accessor('passengerName', {
         header: 'Passenger Name',
         filterFn: 'includesString',
       }),
-      columnHelper.accessor('pnrTicket', {
-        header: 'PNR Ticket',
+      columnHelper.accessor('sector', {
+        header: 'Sector',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('originStn', {
+        header: 'Origin Stn.',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('destinationStn', {
+        header: 'Destination Stn.',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('class', {
+        header: 'Class',
         filterFn: 'includesString',
       }),
       columnHelper.accessor('quota', {
         header: 'Quota',
         filterFn: 'includesString',
       }),
-      // columnHelper.accessor('sNo', {
-      //   header: 'Serial Number',
-      //   filterFn: 'includesString',
-      // }),
-      columnHelper.accessor('sector', {
-        header: 'Sector',
-        filterFn: 'includesString',
-      }),
-      columnHelper.accessor('statementPeriod', {
-        header: 'Statement Period',
+      columnHelper.accessor('noOfPax', {
+        header: 'No. of Pax',
         filterFn: 'includesString',
       }),
       columnHelper.accessor('ticketAmount', {
         header: 'Ticket Amount',
         filterFn: 'includesString',
       }),
+      columnHelper.accessor('sCharges', {
+        header: 'S. Charges',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('gst18', {
+        header: 'GST (18%)',
+        filterFn: 'includesString',
+      }),
       columnHelper.accessor('totalAmount', {
         header: 'Total Amount',
         filterFn: 'includesString',
       }),
-      columnHelper.accessor('vendeeName', {
-        header: 'Vendee Name',
+      columnHelper.accessor('bookingId', {
+        header: 'Booking ID',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('vendeeCorporate', {
+        header: 'Vendee/Corporate',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('subCorporate', {
+        header: 'Sub-Corporate',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('subEntity', {
+        header: 'Sub-Entity',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('nttBillNo', {
+        header: 'NTT Bill No.',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('invoiceNo', {
+        header: 'Invoice No.',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('statementPeriod', {
+        header: 'Statement Period',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('gstNo', {
+        header: 'GST No.',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('gstState', {
+        header: 'GST State',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('cgst9', {
+        header: 'CGST %9',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('sgst9', {
+        header: 'SGST % 9',
+        filterFn: 'includesString',
+      }),
+      columnHelper.accessor('igst18', {
+        header: 'IGST % 18',
         filterFn: 'includesString',
       }),
     ],
@@ -243,7 +259,7 @@ const Bookings = ({ bookings, error }) => {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: (row, columnId, filterValue) => {
-      const pnr = row.getValue('pnrTicket')?.toString().toLowerCase() || '';
+      const pnr = row.getValue('pnrTicketNo')?.toString().toLowerCase() || '';
       const bookingId = row.getValue('bookingId')?.toString().toLowerCase() || '';
       return pnr.includes(filterValue.toLowerCase()) || bookingId.includes(filterValue.toLowerCase());
     },
@@ -251,7 +267,7 @@ const Bookings = ({ bookings, error }) => {
   });
 
   return (
-    <BrLayout heading="Bookings">
+    <>
       {error ? (
         <div className="text-red-500 mt-4">{error}</div>
       ) : (
@@ -346,7 +362,7 @@ const Bookings = ({ bookings, error }) => {
           </div>
         </div>
       )}
-    </BrLayout>
+    </>
   );
 };
 

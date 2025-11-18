@@ -36,6 +36,7 @@ model Client {
   subEntity       String   @map("sub_entity") @db.NVarChar(150)
   gstNo           String?  @map("gst_no") @db.NVarChar(50)
   address         String?  @db.NVarChar(Max)
+  hasExcel        Boolean  @default(false) @map("has_excel")
   createdAt       DateTime @default(now()) @map("created_at") @db.DateTime2
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime2
   createdByAdminId Int     @map("created_by_admin_id")
