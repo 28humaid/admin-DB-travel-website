@@ -46,6 +46,7 @@ export async function DELETE(request) {
     await prisma.$transaction(async (tx) => {
       await tx.booking.deleteMany({ where: { clientId } });
       await tx.refund.deleteMany({ where: { clientId } });
+      await tx.client.update({ where: { clientId }, data: { hasExcel: false}});
     });
 
     // 4. Success log
