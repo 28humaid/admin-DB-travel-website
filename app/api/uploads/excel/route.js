@@ -8,6 +8,34 @@ import { getServerSession } from 'next-auth/next';
 const prisma = new PrismaClient();
 
 export async function POST(request) {
+
+  function fixIST(dateString) {
+    let doo = new Date(dateString);
+    let newDate = new Date( doo.getTime() - doo.getTimezoneOffset()*60000 + 10000);
+    // console.log("I am raw date....",doo.getTime());
+    // console.log("I am raw date with added offset....",doo.getTime() - doo.getTimezoneOffset()*60000 + 10000);
+    // console.log("I am new date.....",newDate);
+    // console.log("i am OG date....",doo.getTime());
+    // console.log("I am offset in millisecond.....", doo.getTimezoneOffset()*60000);
+    return newDate;
+  }
+
+  // function fixStatementPeriodIST(dateString) {
+  //   const doo = new Date(dateString);
+  //   const fixed = new Date(doo.getTime() - doo.getTimezoneOffset() * 60000 + 10000);
+  //   console.log("I am OG date:- ",doo);
+  //   console.log("i am converted date...")
+  //   // Option 1: Full month name (e.g. "November 2025")
+  //   // return fixed.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
+
+  //   // Option 2: Short (e.g. "Nov 2025")
+  //   // return fixed.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+
+  //   // Option 3: Numeric (e.g. "11-2025")
+  //   console.log(`${String(fixed.getMonth() + 1).padStart(2, '0')}-${fixed.getFullYear()}`)
+  //   return `${String(fixed.getMonth() + 1).padStart(2, '0')}/${fixed.getFullYear()}`;
+  // }
+
   // --- 1. Auth Check ---
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'admin') {
@@ -130,9 +158,9 @@ export async function POST(request) {
           data: {
             clientId,
             serialNo: row['S. No.'] ? parseInt(row['S. No.']) : null,
-            dateOfBooking: row['Date of Booking'] ? new Date(row['Date of Booking']) : null,
+            dateOfBooking: row['Date of Booking'] ? fixIST(row['Date of Booking']) : null,
             pnrTicketNo: pnr,
-            dateOfTravel: row['Date of Travel'] ? new Date(row['Date of Travel']) : null,
+            dateOfTravel: row['Date of Travel'] ? fixIST(row['Date of Travel']) : null,
             passengerName: row['Passenger Name'] || null,
             sector: row['Sector'] || null,
             originStn: row['Origin Stn.'] || null,
@@ -150,7 +178,7 @@ export async function POST(request) {
             subEntity: row['Sub-Entity'] || null,
             nttBillNo: row['NTT Bill No.']?.toString().trim() || null,
             invoiceNo: row['Invoice No.']?.toString().trim() || null,
-            statementPeriod: row['Statement Period'] ? new Date(row['Statement Period']) : null,
+            statementPeriod: row['Statement Period'] ? fixIST(row['Statement Period']) : null,
             gstNo: row['GST No.']?.toString().trim() || null,
             gstState: row['GST State'] || null,
             cgst9: row['CGST %9'] ? parseFloat(row['CGST %9']) : null,
@@ -176,7 +204,7 @@ export async function POST(request) {
           data: {
             clientId,
             serialNo: row['S.No.'] ? parseInt(row['S.No.']) : null,
-            refundDate: row['REFUND DATE'] ? new Date(row['REFUND DATE']) : null,
+            refundDate: row['REFUND DATE'] ? fixIST(row['REFUND DATE']) : null,
             pnrNo: pnr,
             refundAmount: row['REFUND'] ? parseFloat(row['REFUND']) : null,
             vendeeCorporate: row['Vendee/Corporate']?.toString().trim() || null,

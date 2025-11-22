@@ -28,7 +28,7 @@ import TableSum from '../bookingsNrefunds/tableSum';
 
 
 const Bookings = ({ bookings, error }) => {
-  console.log('bookings:', bookings);
+  // console.log('bookings:', bookings);
 
   // State for filters
   const [globalFilter, setGlobalFilter] = useState('');
@@ -42,6 +42,15 @@ const Bookings = ({ bookings, error }) => {
   const [bookingToError, setBookingToError] = useState('');
   const [travelFromError, setTravelFromError] = useState('');
   const [travelToError, setTravelToError] = useState('');
+
+  // Helper function to format date as MMM-YYYY (e.g., Jan-2024, Feb-2024)
+  const formatToMMMYYYY = (dateString) => {
+    if (!dateString) return '';
+    
+    // If it's already in a recognizable date format, parse and format it
+    const date = new Date(dateString);
+    return isValid(date) ? format(date, 'MMM-yyyy') : '';
+  };
 
   // Define columns
   const columnHelper = createColumnHelper();
@@ -167,7 +176,26 @@ const Bookings = ({ bookings, error }) => {
       }),
       columnHelper.accessor('statementPeriod', {
         header: 'Statement Period',
-        filterFn: 'includesString',
+        cell: (info) => {
+          const value = info.getValue();
+          return formatToMMMYYYY(value);
+        },
+        filterFn: (row, columnId, filterValue) => {
+          if (!filterValue) return true;
+          
+          const rowValue = row.getValue(columnId);
+          
+          // Skip empty cells when filtering
+          if (!rowValue || rowValue.toString().trim() === '') {
+            return false;
+          }
+          
+          const formattedValue = formatToMMMYYYY(rowValue);
+          
+          // Search in both the formatted text and original value
+          return formattedValue.toLowerCase().includes(filterValue.toLowerCase()) || 
+                rowValue.toString().toLowerCase().includes(filterValue.toLowerCase());
+        },
       }),
       columnHelper.accessor('gstNo', {
         header: 'GST No.',

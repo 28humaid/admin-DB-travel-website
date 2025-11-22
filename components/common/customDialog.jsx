@@ -17,7 +17,7 @@ const CustomDialog = ({
     if (customTitle) return customTitle;
 
     // Add support for the new type
-    if (type === 'confirmDeleteExcel') return 'Delete Uploaded Excel?';
+    if (type === 'confirmDeleteExcel') return 'Confirm Deletion';
     if (type === 'confirmDelete') return 'Confirm Deletion';
     if (type === 'confirmOverwrite') return 'Confirm Overwrite';
     return 'Error';
@@ -34,7 +34,7 @@ const CustomDialog = ({
   const cancelText = customCancelText || 'Cancel';
   const confirmText = customConfirmText || (
     type === 'confirmDelete'      ? 'Delete User' :
-    type === 'confirmDeleteExcel' ? 'Delete Excel Only' :
+    type === 'confirmDeleteExcel' ? 'Delete Excel' :
     type === 'confirmOverwrite'   ? 'Overwrite' : 'Confirm'
   );
 

@@ -25,7 +25,7 @@ import TableSum from '../bookingsNrefunds/tableSum';
 // import ExcelDownloadButton from '../bookingsNrefunds/excelDownloadButton';
 
 const Refunds = ({ refunds, error }) => {
-  console.log('refunds:', refunds);
+  // console.log('refunds:', refunds);
 
   // State for filters
   const [globalFilter, setGlobalFilter] = useState('');
