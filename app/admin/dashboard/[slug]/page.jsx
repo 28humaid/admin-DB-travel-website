@@ -7,6 +7,7 @@ import UsersDetails from '@/components/adminDashboard/usersDetails';
 import ExcelUpload from '@/components/adminDashboard/excelUpload';
 import Logout from '@/components/adminDashboard/logout';
 import ViewExcel from '@/components/adminDashboard/viewExcel';
+import PNRComparator from '@/components/adminDashboard/pnrComparator/PNRComparator';
 
 const page = () => {
   const { slug } = useParams();
@@ -17,7 +18,8 @@ const page = () => {
     usersDetails: <UsersDetails/>,
     excelUpload:<ExcelUpload/>,
     logout: <Logout/>,
-    viewExcel: <ViewExcel/>
+    viewExcel: <ViewExcel/>,
+    reconciliation:<PNRComparator/> 
   };
 
   if (!slug){

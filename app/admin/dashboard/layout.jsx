@@ -15,6 +15,7 @@ const layout = async ({ children }) => {
     { label: 'Users details', route: 'usersDetails',icon:'Notebook' },
     { label: 'Upload Excel', route: 'excelUpload',icon:'MonitorUp' },
     { label: 'View Excel', route: 'viewExcel', icon:'FileSpreadsheet' },
+    { label: 'Reconciliation', route: 'reconciliation', icon:'FileSpreadsheet' },
     { label: 'Logout', route: 'logout', icon:'LogOut' },
   ];
 
