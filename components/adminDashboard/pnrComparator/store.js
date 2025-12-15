@@ -14,6 +14,7 @@ export const usePNRStore = create((set, get) => ({
   isParsingMaster: false,
   isParsingCompany: false,
   isComparing: false,
+  isShowingResults: false,
 
   setMasterFileName: (name) => set({ masterFileName: name }),
   setCompanyFileName: (name) => set({ companyFileName: name }),
@@ -221,8 +222,12 @@ export const usePNRStore = create((set, get) => ({
         filteredUniqueCount: filteredPnrSet.size,
         selectedCount: selectedUserIds.size
       },
-      isComparing: false
+      isComparing: false,
+      isShowingResults: true
     });
+    setTimeout(() => {
+      set({ isShowingResults: false });
+    }, 800);
 
     get().openFeedback(
       `Comparison complete: ${missing.length} PNRs missing from Company data`,

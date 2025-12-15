@@ -9,7 +9,7 @@ const CompanyUpload = () => {
 
   return (
     <div className="w-full max-w-2xl">
-      <h2 className="text-xl font-semibold mb-4 text-indigo-700">2. Upload Company Data (Sheet: Bookings)</h2>
+      <h2 className="text-xl font-semibold mb-4 text-indigo-700">2. Upload Company Data</h2>
       <button
         onClick={() => inputRef.current?.click()}
         className="w-full p-8 rounded-2xl border-2 border-dashed border-indigo-400 hover:border-indigo-500 hover:bg-indigo-50 flex flex-col items-center gap-4 transition-all"

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { MenuIcon, XIcon, Notebook, Pencil, MonitorUp, LogOut, FileSpreadsheet } from 'lucide-react';
+import { MenuIcon, XIcon, Notebook, Pencil, MonitorUp, LogOut, FileSpreadsheet, FileCheck } from 'lucide-react';
 
 const iconMap = {
   Pencil: Pencil,
@@ -10,6 +10,7 @@ const iconMap = {
   MonitorUp: MonitorUp,
   LogOut: LogOut,
   FileSpreadsheet:FileSpreadsheet,
+  FileCheck:FileCheck,
 };
 
 const Sidebar = ({ options = [] }) => {

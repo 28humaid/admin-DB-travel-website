@@ -12,17 +12,17 @@ import Loader from '@/components/common/loader'; // Adjust path as needed
 import { usePNRStore } from './store';
 
 const PNRComparator = () => {
-  const { isParsingMaster, isParsingCompany, isComparing } = usePNRStore();
+  const { isParsingMaster, isParsingCompany, isComparing, isShowingResults } = usePNRStore();
 
-  const isLoading = isParsingMaster || isParsingCompany || isComparing;
+  const isLoading = isParsingMaster || isParsingCompany || isComparing || isShowingResults;
 
   return (
     <>
       <div className="w-full min-h-screen flex flex-col items-center justify-start gap-8 p-6">
         {/* <h1 className="text-3xl font-bold text-gray-800">PNR Comparator Tool</h1> */}
         <MasterUpload />
-        <CompanyUpload />
         <UserIdFilter />
+        <CompanyUpload />
         <CompareButton />
         <ComparisonResults />
       </div>
@@ -35,7 +35,9 @@ const PNRComparator = () => {
               ? 'Parsing Master Data file...' 
               : isParsingCompany 
               ? 'Parsing Company Data file...' 
-              : 'Comparing PNRs, please wait...'
+              : isComparing
+              ? 'Comparing PNRs, please wait...'
+              : 'Preparing results...'  // ← This shows when results are displaying
           } 
         />
       )}

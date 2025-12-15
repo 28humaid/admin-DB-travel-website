@@ -9,7 +9,7 @@ const MasterUpload = () => {
 
   return (
     <div className="w-full max-w-2xl">
-      <h2 className="text-xl font-semibold mb-4 text-blue-700">1. Upload Master Data (Sheet: BOOKING)</h2>
+      <h2 className="text-xl font-semibold mb-4 text-blue-700">1. Upload Master Data</h2>
       <button
         onClick={() => inputRef.current?.click()}
         className="w-full p-8 rounded-2xl border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex flex-col items-center gap-4 transition-all"

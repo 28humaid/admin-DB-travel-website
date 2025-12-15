@@ -12,7 +12,7 @@ const CompareButton = () => {
     <button
       onClick={handleCompare}
       disabled={disabled}
-      className={`px-8 py-4 text-lg font-bold rounded-lg transition-all ${
+      className={`px-6 py-2 text-md font-bold rounded-lg transition-all ${
         !disabled
           ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg'
           : 'bg-gray-400 text-gray-600 cursor-not-allowed'
