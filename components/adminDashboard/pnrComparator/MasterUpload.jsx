@@ -15,12 +15,15 @@ const MasterUpload = () => {
         className="w-full p-8 rounded-2xl border-2 border-dashed border-blue-400 hover:border-blue-500 hover:bg-blue-50 flex flex-col items-center gap-4 transition-all"
       >
         <FileUp size={56} className="text-blue-600" />
-        <span className="text-xl font-semibold text-gray-700">Choose Master Excel File</span>
+        <div className="text-center">
+          <span className="text-xl font-semibold text-gray-700">Choose Master File</span>
+          <p className="text-sm text-gray-500 mt-1">Supports .xlsx, .xls, and .csv</p>
+        </div>
       </button>
       <input
         type="file"
         ref={inputRef}
-        accept=".xls,.xlsx"
+        accept=".xls,.xlsx,.csv"
         onChange={(e) => handleFileUpload(e, 'master')}
         className="hidden"
       />

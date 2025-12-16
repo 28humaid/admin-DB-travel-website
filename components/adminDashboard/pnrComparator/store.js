@@ -1,8 +1,7 @@
 // src/components/pnrComparator/store.js
 import { create } from 'zustand';
 import * as XLSX from 'xlsx';
-import FeedbackDialog from '@/components/common/feedbackDialog'; // For openFeedback, but we'll manage state here
-// Note: FeedbackDialog is rendered in PNRComparator, but we can trigger via store if needed. For simplicity, we'll pass openFeedback as a prop or manage locally.
+import Papa from 'papaparse';
 
 export const usePNRStore = create((set, get) => ({
   masterFileName: '',
@@ -20,8 +19,6 @@ export const usePNRStore = create((set, get) => ({
   setCompanyFileName: (name) => set({ companyFileName: name }),
 
   openFeedback: (msg, isError = false) => {
-    // Since FeedbackDialog is in parent, we'll assume it's handled in components or add a callback.
-    // For now, we'll use alert as fallback, but in real app, lift state up or use context.
     alert(isError ? `Error: ${msg}` : msg);
   },
 
@@ -34,6 +31,17 @@ export const usePNRStore = create((set, get) => ({
     return null;
   },
 
+  // Helper to find column name case-insensitively with common variations
+  findColumnName: (headers, possibleNames) => {
+    const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+    for (const name of possibleNames) {
+      const lowered = name.toLowerCase().trim();
+      const index = lowerHeaders.findIndex(h => h === lowered || h.replace(/[^\w]/g, '') === lowered.replace(/[^\w]/g, ''));
+      if (index !== -1) return headers[index];
+    }
+    return null;
+  },
+
   handleFileUpload: (e, type) => {
     const file = e.target.files[0];
     set({ 
@@ -41,120 +49,165 @@ export const usePNRStore = create((set, get) => ({
     });
     if (!file) return;
 
-    const validTypes = [
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ];
-    if (!validTypes.includes(file.type) && !/\.(xls|xlsx)$/i.test(file.name)) {
-      get().openFeedback('Please upload a valid .xls or .xlsx file.', true);
-      return;
-    }
-
     if (file.size > 10 * 1024 * 1024) {
       get().openFeedback('File too large. Maximum size is 10MB.', true);
+      set({ 
+        ...(type === 'master' ? { isParsingMaster: false } : { isParsingCompany: false }) 
+      });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = ev.target?.result;
-        const workbook = XLSX.read(data, { type: 'array' });
+    const isCSV = /\.csv$/i.test(file.name);
+    const isExcel = /\.(xls|xlsx)$/i.test(file.name);
 
-        let sheet, pnrColumn, sheetNames;
+    if (!isCSV && !isExcel) {
+      get().openFeedback('Please upload a valid .xls, .xlsx, or .csv file.', true);
+      set({ 
+        ...(type === 'master' ? { isParsingMaster: false } : { isParsingCompany: false }) 
+      });
+      return;
+    }
 
-        if (type === 'master') {
-          sheetNames = ['BOOKING', 'Booking', 'booking'];
-          sheet = get().findSheetCaseInsensitive(workbook, sheetNames);
-          pnrColumn = 'PNR_NO';
-          if (!sheet) {
-            get().openFeedback('Sheet named "BOOKING" not found in Master file.', true);
-            return;
-          }
-        } else {
-          sheetNames = ['Bookings', 'BOOKINGS', 'bookings'];
-          sheet = get().findSheetCaseInsensitive(workbook, sheetNames);
-          pnrColumn = 'PNR/Ticket #';
-          if (!sheet) {
-            get().openFeedback('Sheet named "Bookings" not found in Company file.', true);
-            return;
-          }
+    const processData = (json, headers) => {
+      if (json.length === 0) {
+        get().openFeedback('File is empty.', true);
+        return false;
+      }
+
+      let pnrColumn, sheetNameHint;
+      if (type === 'master') {
+        pnrColumn = get().findColumnName(headers, ['PNR_NO', 'PNR NO', 'PNRNO', 'PNR']);
+        sheetNameHint = 'BOOKING';
+      } else {
+        pnrColumn = get().findColumnName(headers, ['PNR/Ticket #', 'PNR/Ticket', 'PNR Ticket #', 'PNR', 'Ticket']);
+        sheetNameHint = 'Bookings';
+      }
+
+      if (!pnrColumn) {
+        get().openFeedback(`Required PNR column not found. Expected in ${sheetNameHint} sheet.`, true);
+        return false;
+      }
+
+      const pnrSet = new Set();
+      const seen = new Set();
+      let duplicates = 0;
+
+      json.forEach(row => {
+        const pnr = row[pnrColumn] ? String(row[pnrColumn]).trim() : '';
+        if (pnr && !seen.has(pnr)) {
+          seen.add(pnr);
+          pnrSet.add(pnr);
+        } else if (pnr) {
+          duplicates++;
         }
+      });
 
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
-
-        if (json.length === 0) {
-          get().openFeedback('Selected sheet is empty.', true);
-          return;
-        }
-
-        const firstRow = json[0];
-        if (!(pnrColumn in firstRow)) {
-          get().openFeedback(`Column "${pnrColumn}" not found in the sheet.`, true);
-          return;
-        }
-
-        const pnrSet = new Set();
-        const seen = new Set();
-        let duplicates = 0;
-
-        json.forEach(row => {
-          const pnr = String(row[pnrColumn]).trim();
-          if (pnr && !seen.has(pnr)) {
-            seen.add(pnr);
-            pnrSet.add(pnr);
-          } else if (pnr) {
-            duplicates++;
-          }
-        });
-
-        if (type === 'master') {
-          const userIdSet = new Set();
+      if (type === 'master') {
+        const userIdColumn = get().findColumnName(headers, ['USER_ID', 'USER ID', 'UserId', 'User ID']);
+        const userIdSet = new Set();
+        
+        if (userIdColumn) {
           json.forEach(row => {
-            const userId = row['USER_ID'];
-            if (userId !== undefined && userId !== '') {
+            const userId = row[userIdColumn];
+            if (userId !== undefined && userId !== '' && userId !== null) {
               userIdSet.add(String(userId).trim());
             }
           });
-
-          set({
-            masterData: {
-              rows: json,
-              pnrs: pnrSet,
-              userIds: userIdSet,
-              duplicatesRemoved: duplicates,
-              totalRows: json.length
-            },
-            masterFileName: file.name,
-            selectedUserIds: new Set(userIdSet), // Select all by default
-            comparisonResult: null
-          });
-          get().openFeedback(`Master file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`, false);
-        } else {
-          set({
-            companyData: {
-              pnrs: pnrSet,
-              duplicatesRemoved: duplicates,
-              totalRows: json.length
-            },
-            companyFileName: file.name,
-            comparisonResult: null
-          });
-          get().openFeedback(`Company file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`, false);
         }
-      } catch (err) {
-        get().openFeedback('Failed to parse Excel file. It may be corrupted.', true);
-      } finally{
-        set({ 
-          ...(type === 'master' ? { isParsingMaster: false } : { isParsingCompany: false }) 
+
+        set({
+          masterData: {
+            rows: json,
+            pnrs: pnrSet,
+            userIds: userIdSet,
+            duplicatesRemoved: duplicates,
+            totalRows: json.length
+          },
+          masterFileName: file.name,
+          selectedUserIds: new Set(userIdSet),
+          comparisonResult: null
         });
+        get().openFeedback(`Master file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`, false);
+      } else {
+        set({
+          companyData: {
+            pnrs: pnrSet,
+            duplicatesRemoved: duplicates,
+            totalRows: json.length
+          },
+          companyFileName: file.name,
+          comparisonResult: null
+        });
+        get().openFeedback(`Company file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`, false);
       }
+
+      return true;
     };
 
-    reader.readAsArrayBuffer(file);
+    if (isCSV) {
+      // Parse CSV
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (result) => {
+          if (result.errors.length > 0 && result.data.length === 0) {
+            get().openFeedback('Failed to parse CSV file.', true);
+          } else {
+            processData(result.data, result.meta.fields);
+          }
+          set({ 
+            ...(type === 'master' ? { isParsingMaster: false } : { isParsingCompany: false }) 
+          });
+        },
+        error: () => {
+          get().openFeedback('Failed to read CSV file.', true);
+          set({ 
+            ...(type === 'master' ? { isParsingMaster: false } : { isParsingCompany: false }) 
+          });
+        }
+      });
+    } else {
+      // Parse Excel (existing logic with improvements)
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = ev.target?.result;
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          let sheet, possibleSheetNames;
+          if (type === 'master') {
+            possibleSheetNames = ['BOOKING', 'Booking', 'booking'];
+          } else {
+            possibleSheetNames = ['Bookings', 'BOOKINGS', 'bookings'];
+          }
+
+          sheet = get().findSheetCaseInsensitive(workbook, possibleSheetNames);
+          if (!sheet) {
+            get().openFeedback(`Sheet "${possibleSheetNames[0]}" (case-insensitive) not found.`, true);
+            return;
+          }
+
+          const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+          const headers = Object.keys(json[0] || {});
+
+          if (!processData(json, headers)) {
+            return;
+          }
+        } catch (err) {
+          get().openFeedback('Failed to parse Excel file. It may be corrupted.', true);
+        } finally {
+          set({ 
+            ...(type === 'master' ? { isParsingMaster: false } : { isParsingCompany: false }) 
+          });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
     e.target.value = '';
   },
 
+  // Rest of the store remains unchanged
   handleClearFile: (type) => {
     if (type === 'master') {
       set({ masterFileName: '', masterData: null, selectedUserIds: new Set(), comparisonResult: null });
@@ -197,13 +250,13 @@ export const usePNRStore = create((set, get) => ({
     set({ isComparing: true });
 
     const filteredRows = masterData.rows.filter(row => {
-      const userId = row['USER_ID'];
+      const userId = row['USER_ID']; // Note: column name flexibility already handled during load
       return userId !== undefined && selectedUserIds.has(String(userId).trim());
     });
 
     const filteredPnrSet = new Set();
     filteredRows.forEach(row => {
-      const pnr = String(row['PNR_NO']).trim();
+      const pnr = String(row['PNR_NO'] || '').trim();
       if (pnr) filteredPnrSet.add(pnr);
     });
 

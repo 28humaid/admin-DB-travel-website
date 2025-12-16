@@ -15,12 +15,15 @@ const CompanyUpload = () => {
         className="w-full p-8 rounded-2xl border-2 border-dashed border-indigo-400 hover:border-indigo-500 hover:bg-indigo-50 flex flex-col items-center gap-4 transition-all"
       >
         <FileUp size={56} className="text-indigo-600" />
-        <span className="text-xl font-semibold text-gray-700">Choose Company Excel File</span>
+        <div className="text-center">
+          <span className="text-xl font-semibold text-gray-700">Choose Company File</span>
+          <p className="text-sm text-gray-500 mt-1">Supports .xlsx, .xls, and .csv</p>
+        </div>
       </button>
       <input
         type="file"
         ref={inputRef}
-        accept=".xls,.xlsx"
+        accept=".xls,.xlsx,.csv"
         onChange={(e) => handleFileUpload(e, 'company')}
         className="hidden"
       />
