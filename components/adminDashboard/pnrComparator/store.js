@@ -45,7 +45,7 @@ export const usePNRStore = create((set, get) => ({
   handleFileUpload: (e, type) => {
     const file = e.target.files[0];
     set({ 
-      ...(type === 'master' ? { isParsingMaster: true } : { isParsingCompany: true }) 
+      ...(type === 'master' ? { isParsingMaster: true } : { isParsingCompany: false }) 
     });
     if (!file) return;
 
@@ -105,8 +105,10 @@ export const usePNRStore = create((set, get) => ({
       if (type === 'master') {
         const userIdColumn = get().findColumnName(headers, ['USER_ID', 'USER ID', 'UserId', 'User ID']);
         const userIdSet = new Set();
-        
+        let hasUserIds = false;
+
         if (userIdColumn) {
+          hasUserIds = true;
           json.forEach(row => {
             const userId = row[userIdColumn];
             if (userId !== undefined && userId !== '' && userId !== null) {
@@ -120,14 +122,19 @@ export const usePNRStore = create((set, get) => ({
             rows: json,
             pnrs: pnrSet,
             userIds: userIdSet,
+            hasUserIds, // NEW: Flag to indicate if USER_ID column exists
             duplicatesRemoved: duplicates,
             totalRows: json.length
           },
           masterFileName: file.name,
-          selectedUserIds: new Set(userIdSet),
+          selectedUserIds: hasUserIds ? new Set(userIdSet) : new Set(), // Select all if exists, else empty
           comparisonResult: null
         });
-        get().openFeedback(`Master file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`, false);
+
+        get().openFeedback(
+          `Master file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`,
+          false
+        );
       } else {
         set({
           companyData: {
@@ -138,14 +145,16 @@ export const usePNRStore = create((set, get) => ({
           companyFileName: file.name,
           comparisonResult: null
         });
-        get().openFeedback(`Company file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`, false);
+        get().openFeedback(
+          `Company file loaded: ${pnrSet.size} unique PNRs (${duplicates} duplicates removed)`,
+          false
+        );
       }
 
       return true;
     };
 
     if (isCSV) {
-      // Parse CSV
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -167,7 +176,6 @@ export const usePNRStore = create((set, get) => ({
         }
       });
     } else {
-      // Parse Excel (existing logic with improvements)
       const reader = new FileReader();
       reader.onload = (ev) => {
         try {
@@ -207,12 +215,20 @@ export const usePNRStore = create((set, get) => ({
     e.target.value = '';
   },
 
-  // Rest of the store remains unchanged
   handleClearFile: (type) => {
     if (type === 'master') {
-      set({ masterFileName: '', masterData: null, selectedUserIds: new Set(), comparisonResult: null });
+      set({ 
+        masterFileName: '', 
+        masterData: null, 
+        selectedUserIds: new Set(), 
+        comparisonResult: null 
+      });
     } else {
-      set({ companyFileName: '', companyData: null, comparisonResult: null });
+      set({ 
+        companyFileName: '', 
+        companyData: null, 
+        comparisonResult: null 
+      });
     }
   },
 
@@ -228,10 +244,12 @@ export const usePNRStore = create((set, get) => ({
 
   selectAllUserIds: () => {
     const { masterData, selectedUserIds } = get();
-    if (selectedUserIds.size === masterData?.userIds.size) {
-      set({ selectedUserIds: new Set(), comparisonResult: null });
-    } else {
-      set({ selectedUserIds: new Set(masterData.userIds), comparisonResult: null });
+    if (masterData?.hasUserIds) {
+      if (selectedUserIds.size === masterData.userIds.size) {
+        set({ selectedUserIds: new Set(), comparisonResult: null });
+      } else {
+        set({ selectedUserIds: new Set(masterData.userIds), comparisonResult: null });
+      }
     }
   },
 
@@ -242,17 +260,23 @@ export const usePNRStore = create((set, get) => ({
       return;
     }
 
-    if (selectedUserIds.size === 0) {
+    // Only require user ID selection if USER_ID column exists
+    if (masterData.hasUserIds && selectedUserIds.size === 0) {
       get().openFeedback('Please select at least one USER_ID to compare.', true);
       return;
     }
 
     set({ isComparing: true });
 
-    const filteredRows = masterData.rows.filter(row => {
-      const userId = row['USER_ID']; // Note: column name flexibility already handled during load
-      return userId !== undefined && selectedUserIds.has(String(userId).trim());
-    });
+    let filteredRows = masterData.rows;
+
+    // Only filter by USER_ID if the column exists and some are selected
+    if (masterData.hasUserIds && selectedUserIds.size > 0) {
+      filteredRows = masterData.rows.filter(row => {
+        const userId = row['USER_ID']; // Note: actual column name may vary, but we already stored rows with original keys
+        return userId !== undefined && selectedUserIds.has(String(userId).trim());
+      });
+    }
 
     const filteredPnrSet = new Set();
     filteredRows.forEach(row => {
@@ -273,11 +297,12 @@ export const usePNRStore = create((set, get) => ({
         masterDuplicates: masterData.duplicatesRemoved,
         companyDuplicates: companyData.duplicatesRemoved,
         filteredUniqueCount: filteredPnrSet.size,
-        selectedCount: selectedUserIds.size
+        selectedCount: masterData.hasUserIds ? selectedUserIds.size : filteredPnrSet.size
       },
       isComparing: false,
       isShowingResults: true
     });
+
     setTimeout(() => {
       set({ isShowingResults: false });
     }, 800);

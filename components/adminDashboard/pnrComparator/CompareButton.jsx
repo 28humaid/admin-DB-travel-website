@@ -6,7 +6,7 @@ import { usePNRStore } from './store';
 const CompareButton = () => {
   const { masterData, companyData, selectedUserIds, isComparing, handleCompare } = usePNRStore();
 
-  const disabled = !masterData || !companyData || selectedUserIds.size === 0 || isComparing;
+  const disabled = !masterData || !companyData || isComparing;
 
   return (
     <button
