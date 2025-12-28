@@ -33,9 +33,9 @@ export async function POST(request) {
       addressLine2 = '',
     } = body;
 
-    if (!email1 || !companyName || !subEntity) {
+    if (!email1 || !companyName) {
       return NextResponse.json(
-        { message: 'Missing required fields: email1, companyName, subEntity' },
+        { message: 'Missing required fields: email1, companyName' },
         { status: 400 }
       );
     }
@@ -94,7 +94,7 @@ export async function POST(request) {
         uploadType: 'CLIENT_CREATE',
         fileName: null,
         rowsInserted: 1,
-        notes: `Created client: ${companyName} (${subEntity}), username: ${generatedUsername}`,
+        notes: `Created client: ${companyName}, username: ${generatedUsername}`,
       },
     });
 

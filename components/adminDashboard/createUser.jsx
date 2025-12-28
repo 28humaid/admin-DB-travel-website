@@ -45,6 +45,7 @@ const CreateUser = () => {
             companyName: "",
             mobileNo: "",
             subEntity: "",
+            subCorporate: "",
             gstNo: "",
             addressLine1: "",
             addressLine2: "",
