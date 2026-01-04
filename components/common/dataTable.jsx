@@ -64,7 +64,7 @@ const DataTable = ({ data, onDelete, onEdit, onDeleteExcel, hideActions = false 
                         onClick={() => onDeleteExcel(item.clientId)}
                         className="text-[11px] border border-red-500 bg-red-500 p-1 rounded-lg font-bold text-white hover:border-white hover:bg-white hover:text-red-500"
                       >
-                        Delete Excel
+                        Delete Data
                       </button>
                     )}
                   </div>

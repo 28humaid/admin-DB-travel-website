@@ -10,7 +10,7 @@ const FeedbackDialog = ({ isOpen, message, isError = false, onClose }) => {
       const timer = setTimeout(() => {
         setIsVisible(false);
         onClose();
-      }, 5000); // Auto-close after 3 seconds
+      }, 30000); // Auto-close after 30 seconds
       return () => clearTimeout(timer);
     }
   }, [isOpen, onClose]);

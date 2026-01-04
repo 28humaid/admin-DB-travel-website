@@ -16,6 +16,7 @@ const ViewExcel = () => {
   const [bookings, setBookings] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState(null); // { value, label }
 
   // Dialog state
   const [dialog, setDialog] = useState({
@@ -70,6 +71,12 @@ const ViewExcel = () => {
       return;
     }
 
+    // Find the full option object using the selected clientId
+    const fullCompanyOption = companyOptions.find(opt => opt.value === company);
+
+    // THIS IS KEY: Store the full {value, label} object
+    setSelectedCompany(fullCompanyOption || { value: company, label: 'Unknown Company' });
+
     setSubmitting(true);
     setBookings([]);
     setRefunds([]);
@@ -79,7 +86,6 @@ const ViewExcel = () => {
         fetchBookings({ company }).catch(err => { throw err; }),
         fetchRefunds({ company }).catch(err => { throw err; })
       ]);
-
       setBookings(bookingsData || []);
       setRefunds(refundsData || []);
 
@@ -139,7 +145,12 @@ const ViewExcel = () => {
 
       {/* Results Section - Using Tabs Component */}
       {(bookings.length > 0 || refunds.length > 0) && (
+        <>
+        <h1 className="text-lg lg:text-2xl font-bold mt-10 mb-6 text-center text-gray-800">
+          Details for <span className="text-blue-600">{selectedCompany.label}</span>
+        </h1>
         <DisplayContainer bookings={bookings} refunds={refunds} />
+        </>
       )}
 
       {/* Custom Dialog for Feedback */}

@@ -34,7 +34,7 @@ const CustomDialog = ({
   const cancelText = customCancelText || 'Cancel';
   const confirmText = customConfirmText || (
     type === 'confirmDelete'      ? 'Delete User' :
-    type === 'confirmDeleteExcel' ? 'Delete Excel' :
+    type === 'confirmDeleteExcel' ? 'Delete Data' :
     type === 'confirmOverwrite'   ? 'Overwrite' : 'Confirm'
   );
 

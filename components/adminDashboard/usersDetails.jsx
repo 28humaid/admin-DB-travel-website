@@ -302,7 +302,7 @@ const UsersDetails = () => {
           open={openExcelConfirm}
           onClose={() => setOpenExcelConfirm(false)}
           type="confirmDeleteExcel"
-          message="Delete the uploaded Excel file?"
+          message="Delete the uploaded Data?"
           onConfirm={confirmDeleteExcel}
         />
       </div>
