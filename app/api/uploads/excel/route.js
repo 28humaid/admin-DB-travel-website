@@ -7,39 +7,17 @@ import { getServerSession } from 'next-auth/next';
 
 const prisma = new PrismaClient();
 
+function fixIST(dateValue) {
+  if (!dateValue) return null;
+  // Excel dates come as JS Date (UTC-based), we adjust to IST
+  const date = new Date(dateValue);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000 + 10000);
+}
+
 export async function POST(request) {
-
-  function fixIST(dateString) {
-    let doo = new Date(dateString);
-    let newDate = new Date( doo.getTime() - doo.getTimezoneOffset()*60000 + 10000);
-    // console.log("I am raw date....",doo.getTime());
-    // console.log("I am raw date with added offset....",doo.getTime() - doo.getTimezoneOffset()*60000 + 10000);
-    // console.log("I am new date.....",newDate);
-    // console.log("i am OG date....",doo.getTime());
-    // console.log("I am offset in millisecond.....", doo.getTimezoneOffset()*60000);
-    return newDate;
-  }
-
-  // function fixStatementPeriodIST(dateString) {
-  //   const doo = new Date(dateString);
-  //   const fixed = new Date(doo.getTime() - doo.getTimezoneOffset() * 60000 + 10000);
-  //   console.log("I am OG date:- ",doo);
-  //   console.log("i am converted date...")
-  //   // Option 1: Full month name (e.g. "November 2025")
-  //   // return fixed.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
-
-  //   // Option 2: Short (e.g. "Nov 2025")
-  //   // return fixed.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
-
-  //   // Option 3: Numeric (e.g. "11-2025")
-  //   console.log(`${String(fixed.getMonth() + 1).padStart(2, '0')}-${fixed.getFullYear()}`)
-  //   return `${String(fixed.getMonth() + 1).padStart(2, '0')}/${fixed.getFullYear()}`;
-  // }
-
-  // --- 1. Auth Check ---
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'admin') {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const formData = await request.formData();
@@ -58,176 +36,188 @@ export async function POST(request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const workbook = read(buffer, { type: 'buffer', cellDates: true });
 
-    let bookings = [], refunds = [];
+    let rawBookings = [], rawRefunds = [];
     let preview = { bookings: [], refunds: [] };
 
-    // === BOOKINGS SHEET ===
-    const bookingSheet = workbook.SheetNames.find(s => s.toLowerCase().includes('booking'));
-    if (bookingSheet) {
-      const ws = workbook.Sheets[bookingSheet];
-      const rows = utils.sheet_to_json(ws, { header: 1 });
-      if (rows.length > 0) {
+    // === Parse Bookings Sheet ===
+    const bookingSheetName = workbook.SheetNames.find(s => /booking/i.test(s));
+    if (bookingSheetName) {
+      const ws = workbook.Sheets[bookingSheetName];
+      const rows = utils.sheet_to_json(ws, { header: 1, defval: null });
+      if (rows.length > 1) {
         const headers = rows[0].map(h => h?.toString().trim());
-        const pnrIdx = headers.indexOf('PNR/Ticket #');
-        if (pnrIdx === -1) throw new Error('Bookings: Missing PNR/Ticket #');
+        const pnrIdx = headers.findIndex(h => h === 'PNR/Ticket #');
+        if (pnrIdx === -1) throw new Error('Bookings sheet: Missing "PNR/Ticket #" column');
 
-        bookings = rows.slice(1)
-          .filter(r => r[pnrIdx] && r[pnrIdx].toString().trim())
-          .map(r => {
+        rawBookings = rows.slice(1)
+          .filter(row => row[pnrIdx]?.toString().trim())
+          .map(row => {
             const obj = {};
-            headers.forEach((h, i) => {
-              let val = r[i];
-              obj[h] = val;
-            });
+            headers.forEach((h, i) => { obj[h] = row[i]; });
             return obj;
           });
-        preview.bookings = bookings.slice(0, 10);
+
+        preview.bookings = rawBookings.slice(0, 10);
       }
     }
 
-    // === REFUNDS SHEET ===
-    const refundSheet = workbook.SheetNames.find(s => s.toLowerCase().includes('refund'));
-    if (refundSheet) {
-      const ws = workbook.Sheets[refundSheet];
-      const rows = utils.sheet_to_json(ws, { header: 1 });
-      if (rows.length > 0) {
+    // === Parse Refunds Sheet ===
+    const refundSheetName = workbook.SheetNames.find(s => /refund/i.test(s));
+    if (refundSheetName) {
+      const ws = workbook.Sheets[refundSheetName];
+      const rows = utils.sheet_to_json(ws, { header: 1, defval: null });
+      if (rows.length > 1) {
         const headers = rows[0].map(h => h?.toString().trim());
-        const pnrIdx = headers.indexOf('PNR_NO');
-        if (pnrIdx === -1) throw new Error('Refunds: Missing PNR_NO');
+        const pnrIdx = headers.findIndex(h => h === 'PNR_NO');
+        if (pnrIdx === -1) throw new Error('Refunds sheet: Missing "PNR_NO" column');
 
-        refunds = rows.slice(1)
-          .filter(r => r[pnrIdx] && r[pnrIdx].toString().trim())
-          .map(r => {
+        rawRefunds = rows.slice(1)
+          .filter(row => row[pnrIdx]?.toString().trim())
+          .map(row => {
             const obj = {};
-            headers.forEach((h, i) => {
-              let val = r[i];
-              obj[h] = val;
-            });
+            headers.forEach((h, i) => { obj[h] = row[i]; });
             return obj;
           });
-        preview.refunds = refunds.slice(0, 10);
+
+        preview.refunds = rawRefunds.slice(0, 10);
       }
     }
 
-    // === 1. CROSS-COMPANY PNR CONFLICT CHECK ===
-    const conflictingPnrs = new Set();
-
-    for (const row of bookings) {
-      const pnr = row['PNR/Ticket #']?.toString().trim();
-      if (!pnr) continue;
-      const exists = await prisma.booking.findFirst({
-        where: { pnrTicketNo: pnr, clientId: { not: clientId } },
-        select: { pnrTicketNo: true }
-      });
-      if (exists) conflictingPnrs.add(pnr);
+    if (rawBookings.length === 0 && rawRefunds.length === 0) {
+      return NextResponse.json({ error: 'No valid data found in sheets' }, { status: 400 });
     }
 
-    for (const row of refunds) {
-      const pnr = row['PNR_NO']?.toString().trim();
-      if (!pnr) continue;
-      const exists = await prisma.refund.findFirst({
-        where: { pnrNo: pnr, clientId: { not: clientId } },
-        select: { pnrNo: true }
-      });
-      if (exists) conflictingPnrs.add(pnr);
-    }
+    // === Collect all PNRs ===
+    const bookingPnrs = rawBookings.map(r => r['PNR/Ticket #']?.toString().trim()).filter(Boolean);
+    const refundPnrs = rawRefunds.map(r => r['PNR_NO']?.toString().trim()).filter(Boolean);
+    const allPnrs = [...new Set([...bookingPnrs, ...refundPnrs])];
 
-    if (conflictingPnrs.size > 0) {
-      return NextResponse.json(
-        { error: 'PNR(s) already exist for different company' },
-        { status: 400 }
-      );
-    }
+    // === Transaction for consistency and performance ===
+    const result = await prisma.$transaction(async (tx) => {
+      const result = {
+        bookings: { inserted: 0, skipped: 0 },
+        refunds: { inserted: 0, skipped: 0 }
+      };
 
-    // === 2. PROCESS BOOKINGS: Skip if exists, Insert if new ===
-    const result = {
-      bookings: { inserted: 0, skipped: 0 },
-      refunds: { inserted: 0, skipped: 0 }
-    };
+      // 1. Cross-company conflict check
+      if (allPnrs.length > 0) {
+        const [conflictingBookings, conflictingRefunds] = await Promise.all([
+          tx.booking.findMany({
+            where: { pnrTicketNo: { in: allPnrs }, clientId: { not: clientId } },
+            select: { pnrTicketNo: true }
+          }),
+          tx.refund.findMany({
+            where: { pnrNo: { in: allPnrs }, clientId: { not: clientId } },
+            select: { pnrNo: true }
+          })
+        ]);
 
-    for (const row of bookings) {
-      const pnr = row['PNR/Ticket #']?.toString().trim();
-      const exists = await prisma.booking.findFirst({
-        where: { clientId, pnrTicketNo: pnr }
-      });
+        const conflicting = new Set([
+          ...conflictingBookings.map(b => b.pnrTicketNo),
+          ...conflictingRefunds.map(r => r.pnrNo)
+        ]);
 
-      if (exists) {
-        result.bookings.skipped++;
-      } else {
-        await prisma.booking.create({
-          data: {
-            clientId,
-            serialNo: row['S. No.'] ? parseInt(row['S. No.']) : null,
-            dateOfBooking: row['Date of Booking'] ? fixIST(row['Date of Booking']) : null,
-            pnrTicketNo: pnr,
-            dateOfTravel: row['Date of Travel'] ? fixIST(row['Date of Travel']) : null,
-            passengerName: row['Passenger Name'] || null,
-            sector: row['Sector'] || null,
-            originStn: row['Origin Stn.'] || null,
-            destinationStn: row['Destination Stn.'] || null,
-            class: row['Class'] || null,
-            quota: row['Quota'] || null,
-            noOfPax: row['No. of Pax'] ? parseInt(row['No. of Pax']) : null,
-            ticketAmount: row['Ticket Amount'] ? parseFloat(row['Ticket Amount']) : null,
-            sCharges: row['S. Charges'] ? parseFloat(row['S. Charges']) : null,
-            gst18: row['GST (18%)'] ? parseFloat(row['GST (18%)']) : null,
-            totalAmount: row['Total Amount'] ? parseFloat(row['Total Amount']) : null,
-            bookingId: row['Booking ID']?.toString().trim() || null,
-            vendeeCorporate: row['Vendee/Corporate'] || null,
-            subCorporate: row['Sub-Corporate'] || null,
-            subEntity: row['Sub-Entity'] || null,
-            nttBillNo: row['NTT Bill No.']?.toString().trim() || null,
-            invoiceNo: row['Invoice No.']?.toString().trim() || null,
-            statementPeriod: row['Statement Period'] ? fixIST(row['Statement Period']) : null,
-            gstNo: row['GST No.']?.toString().trim() || null,
-            gstState: row['GST State'] || null,
-            cgst9: row['CGST %9'] ? parseFloat(row['CGST %9']) : null,
-            sgst9: row['SGST % 9'] ? parseFloat(row['SGST % 9']) : null,
-            igst18: row['IGST % 18'] ? parseFloat(row['IGST % 18']) : null,
-          }
+        if (conflicting.size > 0) {
+          throw new Error('PNR(s) already exist for different company');
+        }
+      }
+
+      // 2. Same-company duplicate check
+      const existingBookingPnrs = new Set();
+      const existingRefundPnrs = new Set();
+
+      if (bookingPnrs.length > 0) {
+        const existing = await tx.booking.findMany({
+          where: { clientId, pnrTicketNo: { in: bookingPnrs } },
+          select: { pnrTicketNo: true }
         });
-        result.bookings.inserted++;
+        existing.forEach(e => existingBookingPnrs.add(e.pnrTicketNo));
       }
-    }
 
-    // === 3. PROCESS REFUNDS: Skip if exists, Insert if new ===
-    for (const row of refunds) {
-      const pnr = row['PNR_NO']?.toString().trim();
-      const exists = await prisma.refund.findFirst({
-        where: { clientId, pnrNo: pnr }
-      });
-
-      if (exists) {
-        result.refunds.skipped++;
-      } else {
-        await prisma.refund.create({
-          data: {
-            clientId,
-            serialNo: row['S.No.'] ? parseInt(row['S.No.']) : null,
-            refundDate: row['REFUND DATE'] ? fixIST(row['REFUND DATE']) : null,
-            pnrNo: pnr,
-            refundAmount: row['REFUND'] ? parseFloat(row['REFUND']) : null,
-            vendeeCorporate: row['Vendee/Corporate']?.toString().trim() || null,
-            subCorporate: row['Sub-Corporate']?.toString().trim() || null,
-            subEntity: row['Sub-Entity']?.toString().trim() || null,
-          }
+      if (refundPnrs.length > 0) {
+        const existing = await tx.refund.findMany({
+          where: { clientId, pnrNo: { in: refundPnrs } },
+          select: { pnrNo: true }
         });
-        result.refunds.inserted++;
+        existing.forEach(e => existingRefundPnrs.add(e.pnrNo));
       }
-    }
-    // === UPDATE hasExcel = true IF ANY DATA WAS INSERTED ===
-    const totalInserted = result.bookings.inserted + result.refunds.inserted;
-    if (totalInserted > 0) {
-      await prisma.client.update({
-        where: { clientId },
-        data: { hasExcel: true }
-      });
-    }
+
+      // 3. Filter new records only
+      const newBookings = rawBookings
+        .filter(r => !existingBookingPnrs.has(r['PNR/Ticket #'].toString().trim()))
+        .map(r => ({
+          clientId,
+          serialNo: r['S. No.'] ? parseInt(r['S. No.']) : null,
+          dateOfBooking: r['Date of Booking'] ? fixIST(r['Date of Booking']) : null,
+          pnrTicketNo: r['PNR/Ticket #'].toString().trim(),
+          dateOfTravel: r['Date of Travel'] ? fixIST(r['Date of Travel']) : null,
+          passengerName: r['Passenger Name'] || null,
+          sector: r['Sector'] || null,
+          originStn: r['Origin Stn.'] || null,
+          destinationStn: r['Destination Stn.'] || null,
+          class: r['Class'] || null,
+          quota: r['Quota'] || null,
+          noOfPax: r['No. of Pax'] ? parseInt(r['No. of Pax']) : null,
+          ticketAmount: r['Ticket Amount'] ? parseFloat(r['Ticket Amount']) : null,
+          sCharges: r['S. Charges'] ? parseFloat(r['S. Charges']) : null,
+          gst18: r['GST (18%)'] ? parseFloat(r['GST (18%)']) : null,
+          totalAmount: r['Total Amount'] ? parseFloat(r['Total Amount']) : null,
+          bookingId: r['Booking ID']?.toString().trim() || null,
+          vendeeCorporate: r['Vendee/Corporate'] || null,
+          subCorporate: r['Sub-Corporate'] || null,
+          subEntity: r['Sub-Entity'] || null,
+          nttBillNo: r['NTT Bill No.']?.toString().trim() || null,
+          invoiceNo: r['Invoice No.']?.toString().trim() || null,
+          statementPeriod: r['Statement Period'] ? fixIST(r['Statement Period']) : null,
+          gstNo: r['GST No.']?.toString().trim() || null,
+          gstState: r['GST State'] || null,
+          cgst9: r['CGST %9'] ? parseFloat(r['CGST %9']) : null,
+          sgst9: r['SGST % 9'] ? parseFloat(r['SGST % 9']) : null,
+          igst18: r['IGST % 18'] ? parseFloat(r['IGST % 18']) : null,
+        }));
+
+      const newRefunds = rawRefunds
+        .filter(r => !existingRefundPnrs.has(r['PNR_NO'].toString().trim()))
+        .map(r => ({
+          clientId,
+          serialNo: r['S.No.'] ? parseInt(r['S.No.']) : null,
+          refundDate: r['REFUND DATE'] ? fixIST(r['REFUND DATE']) : null,
+          pnrNo: r['PNR_NO'].toString().trim(),
+          refundAmount: r['REFUND'] ? parseFloat(r['REFUND']) : null,
+          vendeeCorporate: r['Vendee/Corporate'] || null,
+          subCorporate: r['Sub-Corporate'] || null,
+          subEntity: r['Sub-Entity'] || null,
+        }));
+
+      // 4. Bulk insert
+      if (newBookings.length > 0) {
+        await tx.booking.createMany({ data: newBookings, skipDuplicates: true });
+        result.bookings.inserted = newBookings.length;
+      }
+      result.bookings.skipped = rawBookings.length - result.bookings.inserted;
+
+      if (newRefunds.length > 0) {
+        await tx.refund.createMany({ data: newRefunds, skipDuplicates: true });
+        result.refunds.inserted = newRefunds.length;
+      }
+      result.refunds.skipped = rawRefunds.length - result.refunds.inserted;
+
+      // 5. Update hasExcel if anything was inserted
+      if (result.bookings.inserted > 0 || result.refunds.inserted > 0) {
+        await tx.client.update({
+          where: { clientId },
+          data: { hasExcel: true }
+        });
+      }
+
+      return result;
+    });
+
     return NextResponse.json({ success: true, ...result, preview });
   } catch (err) {
     console.error('Upload error:', err);
     return NextResponse.json(
-      { error: err.message.includes('different company') ? 'PNR(s) already exist for different company' : err.message },
+      { error: err.message || 'Upload failed' },
       { status: 500 }
     );
   } finally {
@@ -235,7 +225,7 @@ export async function POST(request) {
   }
 }
 
-// === CHECK IF DATA EXISTS ===
+// GET endpoint remains unchanged
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const clientId = parseInt(searchParams.get('companyId'));
