@@ -99,47 +99,74 @@ export async function POST(request) {
         refunds: { inserted: 0, skipped: 0 }
       };
 
-      // 1. Cross-company conflict check
+            // 1. Cross-company conflict check (chunked for MSSQL 2100 param limit)
       if (allPnrs.length > 0) {
-        const [conflictingBookings, conflictingRefunds] = await Promise.all([
-          tx.booking.findMany({
-            where: { pnrTicketNo: { in: allPnrs }, clientId: { not: clientId } },
-            select: { pnrTicketNo: true }
-          }),
-          tx.refund.findMany({
-            where: { pnrNo: { in: allPnrs }, clientId: { not: clientId } },
-            select: { pnrNo: true }
-          })
-        ]);
+        const CHUNK_SIZE = 2000;
+        let conflicting = new Set();
 
-        const conflicting = new Set([
-          ...conflictingBookings.map(b => b.pnrTicketNo),
-          ...conflictingRefunds.map(r => r.pnrNo)
-        ]);
+        for (let i = 0; i < allPnrs.length; i += CHUNK_SIZE) {
+          const chunk = allPnrs.slice(i, i + CHUNK_SIZE);
+
+          const [confBookings, confRefunds] = await Promise.all([
+            tx.booking.findMany({
+              where: {
+                pnrTicketNo: { in: chunk },
+                clientId: { not: clientId }
+              },
+              select: { pnrTicketNo: true }
+            }),
+            tx.refund.findMany({
+              where: {
+                pnrNo: { in: chunk },
+                clientId: { not: clientId }
+              },
+              select: { pnrNo: true }
+            })
+          ]);
+
+          confBookings.forEach(b => conflicting.add(b.pnrTicketNo));
+          confRefunds.forEach(r => conflicting.add(r.pnrNo));
+        }
 
         if (conflicting.size > 0) {
           throw new Error('PNR(s) already exist for different company');
         }
       }
 
-      // 2. Same-company duplicate check
+            // 2. Same-company duplicate check (chunked for MSSQL 2100 param limit)
       const existingBookingPnrs = new Set();
       const existingRefundPnrs = new Set();
 
+      const CHUNK_SIZE = 2000;
+
+      // Bookings duplicate check
       if (bookingPnrs.length > 0) {
-        const existing = await tx.booking.findMany({
-          where: { clientId, pnrTicketNo: { in: bookingPnrs } },
-          select: { pnrTicketNo: true }
-        });
-        existing.forEach(e => existingBookingPnrs.add(e.pnrTicketNo));
+        for (let i = 0; i < bookingPnrs.length; i += CHUNK_SIZE) {
+          const chunk = bookingPnrs.slice(i, i + CHUNK_SIZE);
+          const existing = await tx.booking.findMany({
+            where: {
+              clientId,
+              pnrTicketNo: { in: chunk }
+            },
+            select: { pnrTicketNo: true }
+          });
+          existing.forEach(e => existingBookingPnrs.add(e.pnrTicketNo));
+        }
       }
 
+      // Refunds duplicate check
       if (refundPnrs.length > 0) {
-        const existing = await tx.refund.findMany({
-          where: { clientId, pnrNo: { in: refundPnrs } },
-          select: { pnrNo: true }
-        });
-        existing.forEach(e => existingRefundPnrs.add(e.pnrNo));
+        for (let i = 0; i < refundPnrs.length; i += CHUNK_SIZE) {
+          const chunk = refundPnrs.slice(i, i + CHUNK_SIZE);
+          const existing = await tx.refund.findMany({
+            where: {
+              clientId,
+              pnrNo: { in: chunk }
+            },
+            select: { pnrNo: true }
+          });
+          existing.forEach(e => existingRefundPnrs.add(e.pnrNo));
+        }
       }
 
       // 3. Filter new records only
@@ -191,13 +218,13 @@ export async function POST(request) {
 
       // 4. Bulk insert
       if (newBookings.length > 0) {
-        await tx.booking.createMany({ data: newBookings, skipDuplicates: true });
+        await tx.booking.createMany({ data: newBookings });
         result.bookings.inserted = newBookings.length;
       }
       result.bookings.skipped = rawBookings.length - result.bookings.inserted;
 
       if (newRefunds.length > 0) {
-        await tx.refund.createMany({ data: newRefunds, skipDuplicates: true });
+        await tx.refund.createMany({ data: newRefunds });
         result.refunds.inserted = newRefunds.length;
       }
       result.refunds.skipped = rawRefunds.length - result.refunds.inserted;
@@ -211,7 +238,9 @@ export async function POST(request) {
       }
 
       return result;
-    });
+      }, {
+        timeout: 60000  // <-- This fixes the timeout error
+      });
 
     return NextResponse.json({ success: true, ...result, preview });
   } catch (err) {

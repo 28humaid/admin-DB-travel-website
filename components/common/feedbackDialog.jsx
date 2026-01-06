@@ -20,7 +20,7 @@ const FeedbackDialog = ({ isOpen, message, isError = false, onClose }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}>
       <div
-        className={`p-6 rounded-lg shadow-lg max-w-sm w-full transition-all duration-300 transform ${
+        className={`p-6 rounded-lg shadow-lg max-w-sm w-full max-h-[560px] transition-all duration-300 transform ${
           isError ? "bg-red-100 border-red-500" : "bg-green-100 border-green-500"
         } border-2`}
       >
@@ -31,9 +31,11 @@ const FeedbackDialog = ({ isOpen, message, isError = false, onClose }) => {
         >
           {isError ? "Error" : ""}
         </h3>
+        <div className="overflow-y-auto max-h-96">
         <p className={`text-sm ${isError ? "text-red-600" : "text-green-600"}`}>
           {message}
         </p>
+        </div>
         <button
           onClick={() => {
             setIsVisible(false);
